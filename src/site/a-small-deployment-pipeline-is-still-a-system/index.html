@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A small publishing workflow still needs explicit inputs, outputs, and failure boundaries.">
+    <title>A small deployment pipeline is still a system — Paul's Engineering Blog</title>
+    <link rel="canonical" href="https://engineering.paulheymann.de/a-small-deployment-pipeline-is-still-a-system/">
+    <meta property="og:title" content="A small deployment pipeline is still a system"><meta property="og:type" content="article"><meta property="og:url" content="https://engineering.paulheymann.de/a-small-deployment-pipeline-is-still-a-system/"><meta property="og:description" content="A small publishing workflow still needs explicit inputs, outputs, and failure boundaries.">
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <header class="site-header"><a class="site-logo" href="/" aria-label="Paul's Engineering Blog home"><img class="site-logo-image" src="/assets/images/pauls-engineering-blog.svg" alt="Paul's Engineering Blog"></a></header>
+    <main class="site-content"><article class="post"><header class="post-header"><h1>A small deployment pipeline is still a system</h1><time datetime="2026-09-04">September 4, 2026</time></header>
+      <p>A publishing path can be compact without being casual. Once a file can become a public page, the hand-off needs a shape that is easy to inspect when something changes.</p>
+      <figure><img src="/assets/images/static-publishing-path.svg" alt="A diagram showing a markdown file moving through a static build into a published website."><figcaption>Keep the path short enough to explain on one page.</figcaption></figure>
+      <h2>Three boundaries are enough to start</h2><p>For a static site, I want the input, generated output, and deployment command to remain separate. That makes it possible to check each boundary independently.</p>
+      <ol><li>Write content as plain, versioned files.</li><li>Build a complete static directory from those files.</li><li>Publish that directory as one reviewed release.</li></ol>
+      <blockquote><p>The useful question is not “is this sophisticated?” It is “can I tell what happened when it fails?”</p></blockquote>
+      <h2>Let the command say what it does</h2><p>A small command can still make the sequence visible. The <a href="/what-i-want-from-a-local-first-engineering-blog/">local-first approach</a> keeps that command close to the writing.</p>
+      <pre><code>npm run build
+npx wrangler deploy</code></pre><p>There is no need for a dashboard ritual or a background client<sub>1</sub> in the reader’s browser. The published result is just files.</p><aside class="post-note"><p><sub>1</sub> This is a mock note for the MVP. The actual publishing setup will be documented separately.</p></aside>
+    </article></main>
+    <footer class="site-footer"><div class="site-footer-inner"><span>Paul's Engineering Blog</span><nav class="footer-links" aria-label="Legal links"><a href="/impressum/">Impressum</a><a href="/datenschutzerklaerung/">Datenschutzerklärung</a></nav></div></footer>
+  </body>
+</html>

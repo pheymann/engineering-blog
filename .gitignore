@@ -1,0 +1,25 @@
+# Generated site output and local tool state
+/dist/
+/.wrangler/
+
+# Dependencies and logs
+/node_modules/
+npm-debug.log*
+/.venv/
+/e2e-results/
+__pycache__/
+
+# Local Cloudflare credentials and environment files
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example
+
+# Local integration artifacts
+/bridge/
+/.codex/
+
+# Operating-system and editor files
+.DS_Store
+Thumbs.db

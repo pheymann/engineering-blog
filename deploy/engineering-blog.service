@@ -1,0 +1,46 @@
+[Unit]
+Description=Paul's Engineering Blog local static web server
+Documentation=file:///opt/engineering-blog/README.md
+After=local-fs.target
+RequiresMountsFor=/opt/engineering-blog
+ConditionPathIsDirectory=/opt/engineering-blog/src/site
+
+[Service]
+Type=simple
+User=engineering-blog
+Group=engineering-blog
+WorkingDirectory=/opt/engineering-blog
+Environment=HOME=/var/lib/engineering-blog
+Environment=HOST=127.0.0.1
+Environment=PORT=8080
+Environment=SITE_DIRECTORY=/var/lib/engineering-blog/site
+StateDirectory=engineering-blog
+StateDirectoryMode=0755
+ExecStartPre=/usr/bin/npm run build
+ExecStart=/usr/bin/node scripts/serve.mjs
+Restart=on-failure
+RestartSec=2s
+TimeoutStartSec=30s
+TimeoutStopSec=15s
+StandardOutput=journal
+StandardError=journal
+UMask=0022
+
+# The installed application is root-owned and readable by this system account.
+# Only the generated static output in StateDirectory is writable at runtime.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=127.0.0.1/32
+IPAddressAllow=::1/128
+
+[Install]
+WantedBy=multi-user.target
