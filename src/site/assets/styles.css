@@ -131,7 +131,7 @@ a { color: inherit; }
 }
 
 .post {
-  max-width: 44rem;
+  max-width: 700px;
   padding-bottom: var(--space-3);
 }
 
