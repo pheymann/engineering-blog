@@ -111,11 +111,12 @@ func TestValidate(t *testing.T) {
 			wantError: "second.md: redirect \"/first\" conflicts with first.md",
 		},
 		{
-			name: "rejects Obsidian embed",
+			name: "resolves Obsidian image embed",
 			prepare: func(t *testing.T, root string) []*post.Post {
+				writeFile(t, filepath.Join(root, "attachments", "image.png"))
 				return []*post.Post{fixturePost("first.md", "First", "first", "![[image.png]]")}
 			},
-			wantError: "first.md: Obsidian embeds are not supported",
+			wantAsset: "image.png",
 		},
 		{
 			name: "rejects Obsidian callout",

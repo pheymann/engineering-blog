@@ -15,8 +15,8 @@ func TestBuildLifecycle(t *testing.T) {
 	output := filepath.Join(root, "preview")
 	writeSharedSite(t, static)
 	write(t, filepath.Join(vault, "images", "diagram.png"), "image")
-	write(t, filepath.Join(vault, "first.md"), postSource("First post", "2026-09-04", "/first-old/", "#blog #engineering #preview\n\nSee [[Second post]].\n\n![diagram](images/diagram.png)\n\nfirst body"))
-	write(t, filepath.Join(vault, "second.md"), postSource("Second post", "2026-09-03", "", "#blog #engineering #preview\nsecond body"))
+	write(t, filepath.Join(vault, "First post.md"), postSource("First post", "2026-09-04", "/first-old/", "#blog #engineering #preview\n\nSee [[Second post]].\n\n![[diagram.png]]\n\nfirst body"))
+	write(t, filepath.Join(vault, "Second post.md"), postSource("Second post", "2026-09-03", "", "#blog #engineering #preview\nsecond body"))
 	config := Config{VaultDirectory: vault, StaticDirectory: static, OutputDirectory: output}
 
 	result, err := Build(config)
@@ -61,7 +61,7 @@ func TestBuildLifecycle(t *testing.T) {
 		t.Fatal("unchanged build rewrote output or state")
 	}
 
-	write(t, filepath.Join(vault, "first.md"), postSource("First post", "2026-09-04", "/first-old/", "#blog #engineering #preview\nupdated first body"))
+	write(t, filepath.Join(vault, "First post.md"), postSource("First post", "2026-09-04", "/first-old/", "#blog #engineering #preview\nupdated first body"))
 	result, err = Build(config)
 	if err != nil || !result.Changed {
 		t.Fatalf("changed Build() = %#v, %v", result, err)
@@ -73,7 +73,7 @@ func TestBuildLifecycle(t *testing.T) {
 		t.Fatal("unaffected post was not retained")
 	}
 
-	write(t, filepath.Join(vault, "first.md"), "# First post\n#blog #engineering\nno longer preview")
+	write(t, filepath.Join(vault, "First post.md"), "# First post\n#blog #engineering\nno longer preview")
 	result, err = Build(config)
 	if err != nil || !result.Changed || result.Posts != 1 {
 		t.Fatalf("retag Build() = %#v, %v", result, err)
@@ -85,7 +85,7 @@ func TestBuildLifecycle(t *testing.T) {
 	}
 
 	previousHome := read(t, filepath.Join(output, "index.html"))
-	write(t, filepath.Join(vault, "second.md"), "# Second post\n#blog #engineering #preview")
+	write(t, filepath.Join(vault, "Second post.md"), "# Second post\n#blog #engineering #preview")
 	if _, err := Build(config); err == nil || !strings.Contains(err.Error(), "date property is required") {
 		t.Fatalf("invalid Build() error = %v", err)
 	}
@@ -100,7 +100,7 @@ func TestBuildDetectsRedirectOnlyChanges(t *testing.T) {
 	static := filepath.Join(root, "static")
 	output := filepath.Join(root, "preview")
 	writeSharedSite(t, static)
-	postPath := filepath.Join(vault, "post.md")
+	postPath := filepath.Join(vault, "Post.md")
 	write(t, postPath, postSource("Post", "2026-09-05", "/old-one/", "#blog #engineering #preview\nBody"))
 	config := Config{VaultDirectory: vault, StaticDirectory: static, OutputDirectory: output}
 
@@ -129,9 +129,9 @@ func TestBuildPreservesUnaffectedGeneratedPost(t *testing.T) {
 	static := filepath.Join(root, "static")
 	output := filepath.Join(root, "preview")
 	writeSharedSite(t, static)
-	firstPath := filepath.Join(vault, "first.md")
+	firstPath := filepath.Join(vault, "First.md")
 	write(t, firstPath, postSource("First", "2026-09-05", "", "#blog #engineering #preview\nFirst body"))
-	write(t, filepath.Join(vault, "second.md"), postSource("Second", "2026-09-04", "", "#blog #engineering #preview\nSecond body"))
+	write(t, filepath.Join(vault, "Second.md"), postSource("Second", "2026-09-04", "", "#blog #engineering #preview\nSecond body"))
 	config := Config{VaultDirectory: vault, StaticDirectory: static, OutputDirectory: output}
 
 	if _, err := Build(config); err != nil {
@@ -161,7 +161,7 @@ func TestBuildRepairsMissingGeneratedFileWithUnchangedVault(t *testing.T) {
 	static := filepath.Join(root, "static")
 	output := filepath.Join(root, "preview")
 	writeSharedSite(t, static)
-	write(t, filepath.Join(vault, "post.md"), postSource("Post", "2026-09-05", "", "#blog #engineering #preview\nBody"))
+	write(t, filepath.Join(vault, "Post.md"), postSource("Post", "2026-09-05", "", "#blog #engineering #preview\nBody"))
 	config := Config{VaultDirectory: vault, StaticDirectory: static, OutputDirectory: output}
 
 	if _, err := Build(config); err != nil {
@@ -193,6 +193,24 @@ func TestBuildRepairsMissingGeneratedFileWithUnchangedVault(t *testing.T) {
 	}
 	if strings.Contains(read(t, generated), "corrupt") {
 		t.Fatal("corrupt generated post was not repaired")
+	}
+}
+
+func TestBuildRendersObsidianImageEmbedWithSpaces(t *testing.T) {
+	root := t.TempDir()
+	vault := filepath.Join(root, "vault")
+	static := filepath.Join(root, "static")
+	output := filepath.Join(root, "preview")
+	writeSharedSite(t, static)
+	write(t, filepath.Join(vault, "My diagram.png"), "image")
+	write(t, filepath.Join(vault, "Post.md"), postSource("Post", "2026-09-05", "", "#blog #engineering #preview\n\n![[My diagram.png]]"))
+
+	if _, err := Build(Config{VaultDirectory: vault, StaticDirectory: static, OutputDirectory: output}); err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	page := read(t, filepath.Join(output, "post", "index.html"))
+	if !strings.Contains(page, `src="/assets/posts/My%20diagram.png"`) {
+		t.Fatalf("generated post does not render the spaced image filename: %s", page)
 	}
 }
 

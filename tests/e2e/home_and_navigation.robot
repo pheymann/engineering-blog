@@ -13,7 +13,7 @@ Homepage Renders Newest First Cards With Five Line Excerpts
     Should Be Equal    ${titles}[0]    A small deployment pipeline is still a system
     Should Be Equal    ${titles}[1]    What I want from a local-first engineering blog
     ${card_count}=    Get Element Count    css=.post-card
-    Should Be Equal As Integers    ${card_count}    2
+    Should Be True    ${card_count} >= 2    The two ordering fixtures must be present alongside any real preview posts.
     FOR    ${index}    IN RANGE    0    ${card_count}
         ${break_count}=    Evaluate JavaScript    css=.post-card >> nth=${index}    (element) => element.querySelectorAll('.post-excerpt br').length
         Should Be Equal As Integers    ${break_count}    4    Each homepage excerpt must have five lines.

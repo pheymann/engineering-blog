@@ -39,15 +39,15 @@ sixth line`
 	}{
 		{
 			name:        "valid preview post",
-			path:        "Engineering Blog/local-first.md",
+			path:        "Engineering Blog/A Local-First Engineering Blog.md",
 			markdown:    validBody,
 			wantTitle:   "A Local-First Engineering Blog",
 			wantDate:    time.Date(2026, time.September, 4, 0, 0, 0, 0, time.UTC),
 			wantSlug:    "a-local-first-engineering-blog",
 			wantTags:    []string{"blog", "engineering", "preview", "notes"},
 			wantRedirs:  []string{"/previous-title/", "/older-title/"},
-			wantExcerpt: "#blog #engineering #preview #notes\nfirst line\nsecond line\nthird line\nfourth line",
-			wantBody:    "#blog #engineering #preview #notes\nfirst line\nsecond line\nthird line\nfourth line\nfifth line\nsixth line",
+			wantExcerpt: "first line\nsecond line\nthird line\nfourth line\nfifth line",
+			wantBody:    "first line\nsecond line\nthird line\nfourth line\nfifth line\nsixth line",
 		},
 		{
 			name:     "irrelevant tags are ignored without metadata",
@@ -56,10 +56,16 @@ sixth line`
 			wantNil:  true,
 		},
 		{
-			name:      "missing first H1",
-			path:      "posts/no-title.md",
-			markdown:  "---\ndate: 2026-09-04\n---\n#blog #engineering #preview\nparagraph",
-			wantError: "posts/no-title.md: first H1 title is required",
+			name:        "filename supplies title without H1",
+			path:        "posts/Title From Filename.md",
+			markdown:    "---\ndate: 2026-09-04\n---\n#blog #engineering #preview\nparagraph",
+			wantTitle:   "Title From Filename",
+			wantSlug:    "title-from-filename",
+			wantDate:    time.Date(2026, time.September, 4, 0, 0, 0, 0, time.UTC),
+			wantTags:    []string{"blog", "engineering", "preview"},
+			wantRedirs:  []string{},
+			wantExcerpt: "paragraph",
+			wantBody:    "paragraph",
 		},
 		{
 			name:      "missing date",
@@ -87,9 +93,9 @@ sixth line`
 		},
 		{
 			name:      "unusable slug",
-			path:      "posts/no-slug.md",
+			path:      "posts/!!!.md",
 			markdown:  "---\ndate: 2026-09-04\n---\n# !!!\n#blog #engineering #preview",
-			wantError: "posts/no-slug.md: title \"!!!\" does not produce a usable slug",
+			wantError: "posts/!!!.md: title \"!!!\" does not produce a usable slug",
 		},
 	}
 
@@ -148,5 +154,33 @@ func TestParseRejectsRedirectThatEscapesGeneratedSite(t *testing.T) {
 	_, err := Parse("unsafe.md", markdown)
 	if err == nil || !strings.Contains(err.Error(), "redirect") {
 		t.Fatalf("Parse() error = %v, want redirect validation error", err)
+	}
+}
+
+func TestParseRemovesMatchingH1AfterBodyTags(t *testing.T) {
+	markdown := "---\ndate: 2026-09-05\n---\n#blog #engineering #preview\n\n# Title From Filename\n\nBody"
+
+	parsed, err := Parse("Title From Filename.md", markdown)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if strings.Contains(parsed.Body, "# Title From Filename") {
+		t.Fatalf("Parse() body retains a duplicate title heading: %q", parsed.Body)
+	}
+}
+
+func TestParseExcerptSkipsTagsImagesAndBlankLines(t *testing.T) {
+	markdown := "---\ndate: 2026-09-05\n---\n#blog #engineering #preview\n\n![[hero image.png]]\n\nFirst text line.\n\nSecond text line.\nThird text line.\nFourth text line.\nFifth text line.\nSixth text line."
+
+	parsed, err := Parse("Preview.md", markdown)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if strings.Contains(parsed.Body, "#blog") {
+		t.Fatalf("Parse() body retains deployment tags: %q", parsed.Body)
+	}
+	want := "First text line.\nSecond text line.\nThird text line.\nFourth text line.\nFifth text line."
+	if parsed.Excerpt != want {
+		t.Fatalf("Parse() excerpt = %q, want %q", parsed.Excerpt, want)
 	}
 }

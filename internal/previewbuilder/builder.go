@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,8 +22,9 @@ import (
 const stateFilename = ".engineering-blog-preview-state.json"
 
 var (
-	wikilink = regexp.MustCompile(`\[\[([^\]]+)\]\]`)
-	image    = regexp.MustCompile(`(!\[[^\]]*\]\()([^\s)]+)`)
+	wikilink      = regexp.MustCompile(`\[\[([^\]]+)\]\]`)
+	image         = regexp.MustCompile(`(!\[[^\]]*\]\()([^\s)]+)`)
+	obsidianImage = regexp.MustCompile(`!\[\[([^\]|]+)(?:\|([^\]]*))?\]\]`)
 )
 
 // Config identifies the immutable vault input, shared site source, and preview output.
@@ -257,6 +259,15 @@ func postFingerprint(value *post.Post) string {
 
 func cloneForRender(value *post.Post, links []contentgraph.Link) *post.Post {
 	clone := *value
+	clone.Body = obsidianImage.ReplaceAllStringFunc(clone.Body, func(match string) string {
+		parts := obsidianImage.FindStringSubmatch(match)
+		filename := filepath.Base(strings.TrimSpace(parts[1]))
+		alt := strings.TrimSuffix(filename, filepath.Ext(filename))
+		if len(parts) > 2 && strings.TrimSpace(parts[2]) != "" {
+			alt = strings.TrimSpace(parts[2])
+		}
+		return "![" + alt + "](/assets/posts/" + url.PathEscape(filename) + ")"
+	})
 	index := 0
 	clone.Body = wikilink.ReplaceAllStringFunc(clone.Body, func(match string) string {
 		if index >= len(links) {

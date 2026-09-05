@@ -17,8 +17,8 @@ import (
 var (
 	wikilinkPattern      = regexp.MustCompile(`\[\[([^\]]+)\]\]`)
 	imagePattern         = regexp.MustCompile(`!\[[^\]]*\]\(([^\s)]+)(?:\s+[^)]*)?\)`)
+	obsidianImagePattern = regexp.MustCompile(`!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]`)
 	calloutPattern       = regexp.MustCompile(`(?mi)^\s*>\s*\[![^\]]+\]`)
-	obsidianEmbedPattern = regexp.MustCompile(`!\[\[[^\]]+\]\]`)
 	excalidrawPattern    = regexp.MustCompile(`(?i)excalidraw-plugin:|\[\[[^\]]*\.excalidraw(?:\.md)?(?:\|[^\]]*)?\]\]`)
 )
 
@@ -143,8 +143,6 @@ func normalizedRoute(value string) string {
 
 func rejectUnsupportedSyntax(current *post.Post) error {
 	switch {
-	case obsidianEmbedPattern.MatchString(current.Body):
-		return fmt.Errorf("%s: Obsidian embeds are not supported", current.Path)
 	case calloutPattern.MatchString(current.Body):
 		return fmt.Errorf("%s: Obsidian callouts are not supported", current.Path)
 	case excalidrawPattern.MatchString(current.Body):
@@ -154,7 +152,8 @@ func rejectUnsupportedSyntax(current *post.Post) error {
 }
 
 func resolveLinks(current *post.Post, posts map[string]*post.Post) ([]Link, error) {
-	matches := wikilinkPattern.FindAllStringSubmatch(current.Body, -1)
+	bodyWithoutImages := obsidianImagePattern.ReplaceAllString(current.Body, "")
+	matches := wikilinkPattern.FindAllStringSubmatch(bodyWithoutImages, -1)
 	links := make([]Link, 0, len(matches))
 	for _, match := range matches {
 		reference := strings.TrimSpace(strings.SplitN(match[1], "|", 2)[0])
@@ -172,6 +171,9 @@ func imageReferences(body string) []string {
 	references := make([]string, 0, len(matches))
 	for _, match := range matches {
 		references = append(references, match[1])
+	}
+	for _, match := range obsidianImagePattern.FindAllStringSubmatch(body, -1) {
+		references = append(references, strings.TrimSpace(match[1]))
 	}
 	return references
 }

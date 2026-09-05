@@ -4,6 +4,7 @@ package post
 import (
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 var (
 	firstH1Pattern = regexp.MustCompile(`^#\s+(.+?)\s*$`)
 	tagPattern     = regexp.MustCompile(`(?:^|[^[:alnum:]_/-])#([[:alnum:]_/-]+)`)
+	tagOnlyPattern = regexp.MustCompile(`^\s*(?:#[[:alnum:]_/-]+\s*)+$`)
 )
 
 // Post is the parsed source representation of a previewable vault post.
@@ -45,10 +47,8 @@ func Parse(filePath, markdown string) (*Post, error) {
 		return nil, pathError(filePath, err)
 	}
 
-	title, postBody, err := titleAndBody(body)
-	if err != nil {
-		return nil, pathError(filePath, err)
-	}
+	title := strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+	postBody := contentBody(body, title)
 	slug := Slug(title)
 	if slug == "" {
 		return nil, pathError(filePath, fmt.Errorf("title %q does not produce a usable slug", title))
@@ -61,7 +61,7 @@ func Parse(filePath, markdown string) (*Post, error) {
 		Redirects: redirects,
 		Tags:      tags,
 		Slug:      slug,
-		Excerpt:   firstLines(postBody, 5),
+		Excerpt:   firstTextLines(postBody, 5),
 		Body:      postBody,
 	}, nil
 }
@@ -155,20 +155,20 @@ func validRedirect(value string) error {
 	return nil
 }
 
-func titleAndBody(body string) (string, string, error) {
+func contentBody(body, title string) string {
 	lines := strings.Split(body, "\n")
-	for index, line := range lines {
-		matches := firstH1Pattern.FindStringSubmatch(line)
-		if matches == nil {
+	content := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if tagOnlyPattern.MatchString(line) {
 			continue
 		}
-		title := strings.TrimSpace(strings.TrimSuffix(matches[1], "#"))
-		if title == "" {
-			return "", "", fmt.Errorf("first H1 title is empty")
+		matches := firstH1Pattern.FindStringSubmatch(line)
+		if matches != nil && strings.TrimSpace(strings.TrimSuffix(matches[1], "#")) == title {
+			continue
 		}
-		return title, strings.Join(lines[index+1:], "\n"), nil
+		content = append(content, line)
 	}
-	return "", "", fmt.Errorf("first H1 title is required")
+	return strings.TrimSpace(strings.Join(content, "\n"))
 }
 
 func tagsIn(body string) []string {
@@ -187,12 +187,24 @@ func isPreviewPost(tags []string) bool {
 	return contains(tags, "blog") && contains(tags, "engineering") && contains(tags, "preview")
 }
 
-func firstLines(body string, count int) string {
-	lines := strings.Split(body, "\n")
-	if len(lines) > count {
-		lines = lines[:count]
+func firstTextLines(body string, count int) string {
+	selected := make([]string, 0, count)
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || isImageOnly(line) {
+			continue
+		}
+		selected = append(selected, line)
+		if len(selected) == count {
+			break
+		}
 	}
-	return strings.Join(lines, "\n")
+	return strings.Join(selected, "\n")
+}
+
+func isImageOnly(line string) bool {
+	return (strings.HasPrefix(line, "![[") && strings.HasSuffix(line, "]]")) ||
+		(strings.HasPrefix(line, "![") && strings.Contains(line, "](") && strings.HasSuffix(line, ")"))
 }
 
 func contains(values []string, target string) bool {
