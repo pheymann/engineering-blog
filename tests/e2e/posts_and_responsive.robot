@@ -35,3 +35,10 @@ Desktop And Mobile Layouts Avoid Horizontal Overflow
     ${scroll_width}=    Evaluate JavaScript    ${None}    () => document.documentElement.scrollWidth
     ${viewport_width}=    Evaluate JavaScript    ${None}    () => window.innerWidth
     Should Be True    ${scroll_width} <= ${viewport_width}    Mobile layout must not overflow horizontally.
+
+Footer Stays At Viewport Bottom On A Short Page
+    Open Site Page    /impressum/
+    Use Desktop Viewport
+    ${footer_bottom}=    Evaluate JavaScript    css=.site-footer    (element) => element.getBoundingClientRect().bottom
+    ${viewport_height}=    Evaluate JavaScript    ${None}    () => window.innerHeight
+    Should Be Equal As Numbers    ${footer_bottom}    ${viewport_height}    Footer must reach the viewport bottom when page content is short.
