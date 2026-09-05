@@ -20,8 +20,6 @@ const bannedPatterns = [
 const textExtensions = new Set(['.css', '.html', '.svg']);
 const publicPages = [
   'index.html',
-  'a-small-deployment-pipeline-is-still-a-system/index.html',
-  'what-i-want-from-a-local-first-engineering-blog/index.html',
   'impressum/index.html',
   'datenschutzerklaerung/index.html'
 ];
@@ -102,15 +100,14 @@ assert.doesNotMatch(tailscaleSetup, /tailscale funnel/);
 const outputIndex = await readFile(resolve(outputDirectory, 'index.html'), 'utf8');
 assert.match(outputIndex, /<link rel="stylesheet" href="\/assets\/styles\.css">/);
 assert.match(outputIndex, /src="\/assets\/images\/pauls-engineering-blog\.svg"/);
-assert.equal((outputIndex.match(/class="post-card"/g) ?? []).length, 2, 'Homepage must list exactly two posts.');
-assert.match(outputIndex, /a-small-deployment-pipeline-is-still-a-system\//);
-assert.match(outputIndex, /what-i-want-from-a-local-first-engineering-blog\//);
-assert.match(outputIndex, /class="post-excerpt">(?:[^<]*<br>){4}/, 'Each excerpt must contain five lines.');
+assert.equal((outputIndex.match(/class="post-card"/g) ?? []).length, 0, 'Checked-in homepage must not contain mock posts.');
 
 const sourceStyles = await readFile(resolve(sourceDirectory, 'assets/styles.css'), 'utf8');
 assert.match(sourceStyles, /--color-page:/);
 assert.match(sourceStyles, /--font-display:/);
 assert.match(sourceStyles, /--side-margin:/);
+assert.match(sourceStyles, /body\s*\{[^}]*display:\s*flex;[^}]*min-height:\s*100vh;[^}]*flex-direction:\s*column;/s);
+assert.match(sourceStyles, /\.site-content\s*\{[^}]*flex:\s*1;/s);
 assert.match(sourceStyles, /@media \(max-width: 42rem\)/);
 assert.doesNotMatch(sourceStyles, /border-radius\s*:/);
 
@@ -143,14 +140,6 @@ for (const [index, page] of publicPages.entries()) {
   assert.match(content, /<meta property="og:description"/, `${page} needs an Open Graph excerpt.`);
   assert.doesNotMatch(content, /<script\b/i, `${page} must not require JavaScript.`);
   assert.doesNotMatch(content, /document\.cookie/i, `${page} must not set cookies.`);
-}
-
-for (const post of publicPages.slice(1, 3)) {
-  const content = await readFile(resolve(outputDirectory, post), 'utf8');
-  for (const element of ['<h1', '<h2', '<p', '<a ', '<li', '<img ', '<blockquote', '<sub', '<pre><code>']) {
-    assert.match(content, new RegExp(element), `${post} must exercise ${element}.`);
-  }
-  assert.match(content, /<h1[\s\S]*?<\/h1><time/, `${post} must place the date directly below its title.`);
 }
 
 for (const filePath of [...sourceFiles, ...outputFiles]) {

@@ -51,8 +51,7 @@ PORT=8081 npm run serve
 
 ```text
 src/site/                         Source HTML and static assets
-src/site/index.html               Homepage and the two post cards/excerpts
-src/site/<post-slug>/index.html   Individual mock post pages
+src/site/index.html               Homepage shell used when no vault posts qualify
 src/site/impressum/index.html     Legal-page placeholder
 src/site/datenschutzerklaerung/   Data-protection-page placeholder
 src/site/assets/                  Checked-in CSS, fonts, logo, and illustrations
@@ -64,14 +63,7 @@ deploy/                           systemd, Tailscale, and Cloudflare templates
 tests/                            Static checks and Robot Framework regression suite
 ```
 
-The two mock posts are:
-
-- `src/site/a-small-deployment-pipeline-is-still-a-system/index.html`
-- `src/site/what-i-want-from-a-local-first-engineering-blog/index.html`
-
-Edit their HTML directly for the MVP. If a title, date, URL, or excerpt changes, also update the matching card in `src/site/index.html`, the affected canonical and Open Graph metadata, and `src/site/sitemap.xml`. The homepage currently lists the newer post first and renders exactly five excerpt lines per card. Keep all assets local and preserve the footer links to both legal pages.
-
-The Go parser recognizes the preview-post metadata format; generated pages, redirects, and local preview output are handled automatically. There is no post-publishing command yet. `deploy/wrangler.example.jsonc` is only an unconfigured Workers Static Assets template; it is not a deploy command or a Cloudflare configuration to copy into production.
+No mock posts are checked into the site. The Go parser recognizes the preview-post metadata format; generated pages, redirects, and local preview output are handled automatically. Keep all assets local and preserve the footer links to both legal pages. There is no post-publishing command yet. `deploy/wrangler.example.jsonc` is only an unconfigured Workers Static Assets template; it is not a deploy command or a Cloudflare configuration to copy into production.
 
 ## Local systemd service
 
