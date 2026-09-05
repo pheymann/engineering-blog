@@ -2,7 +2,9 @@
 
 This repository is the MVP for Paul's Engineering Blog. It is a static, privacy-focused preview of `engineering.paulheymann.de`: plain HTML and CSS, local fonts and images, no JavaScript, cookies, analytics, or external runtime downloads.
 
-The MVP contains the responsive site design, two mock posts, a local systemd web service, a private Tailscale HTTPS preview, and automated checks. It does **not** yet convert Obsidian vault Markdown, watch the vault, generate posts, or publish to Cloudflare. Those are later milestones; do not treat this repository as a publishing pipeline yet.
+The repository contains the responsive site design, local vault-to-HTML preview pipeline, private Tailscale HTTPS preview, and automated checks. It does **not** publish to Cloudflare; that remains outside this milestone.
+
+The Go vault-preview service parses and validates tagged Markdown, builds the local preview, and watches the vault. The Node process remains a small loopback-only static-file server for the generated output.
 
 The site includes canonical URLs, Open Graph title/type/URL/description metadata, `robots.txt`, and `sitemap.xml`. The `Impressum` and `Datenschutzerklärung` pages are placeholders until legally reviewed text is supplied.
 
@@ -69,11 +71,11 @@ The two mock posts are:
 
 Edit their HTML directly for the MVP. If a title, date, URL, or excerpt changes, also update the matching card in `src/site/index.html`, the affected canonical and Open Graph metadata, and `src/site/sitemap.xml`. The homepage currently lists the newer post first and renders exactly five excerpt lines per card. Keep all assets local and preserve the footer links to both legal pages.
 
-There is no Markdown source format, generated-post convention, vault watcher, redirect handling, or post-publishing command yet. `deploy/wrangler.example.jsonc` is only an unconfigured Workers Static Assets template; it is not a deploy command or a Cloudflare configuration to copy into production.
+The Go parser recognizes the preview-post metadata format; generated pages, redirects, and local preview output are handled automatically. There is no post-publishing command yet. `deploy/wrangler.example.jsonc` is only an unconfigured Workers Static Assets template; it is not a deploy command or a Cloudflare configuration to copy into production.
 
 ## Local systemd service
 
-The supplied `engineering-blog.service` serves a private generated copy from `/var/lib/engineering-blog/site` on `127.0.0.1:8080`. The installer copies the versioned runtime files to `/opt/engineering-blog`, creates the dedicated unprivileged `engineering-blog` system account if needed, and makes the installed application root-owned and readable by that account. It rebuilds before every start; only the generated state directory is writable at runtime.
+The deployment uses two units: `engineering-blog-preview.service` transforms and watches `/root/obsidian-vault/Engineering Blog` as root because the vault is private, while `engineering-blog.service` serves `/var/lib/engineering-blog/site` as the dedicated unprivileged `engineering-blog` account on `127.0.0.1:8080`. The installer compiles the versioned Go binary under `/opt/engineering-blog`, installs both units, and makes only the generated state directory writable at runtime.
 
 Install or update the versioned unit, then enable and start it:
 
@@ -84,17 +86,17 @@ sudo deploy/install-service.sh
 Inspect the running service and its recent log entries:
 
 ```sh
-systemctl status engineering-blog.service --no-pager
-journalctl -u engineering-blog.service -n 100 --no-pager
+systemctl status engineering-blog-preview.service engineering-blog.service --no-pager
+journalctl -u engineering-blog-preview.service -n 100 --no-pager
 ```
 
 Follow logs while reproducing a problem with:
 
 ```sh
-journalctl -fu engineering-blog.service
+journalctl -fu engineering-blog-preview.service
 ```
 
-If the service will not start, first check that `/opt/engineering-blog/src/site` exists, that Node matches the pinned version, and that port 8080 is available. After changing source assets, reinstall the versioned runtime files and restart the service:
+If the service will not start, first check that `/opt/engineering-blog/src/site` exists, that Go is installed, and that the vault remains readable to the root-owned transformer. After changing source assets or pipeline code, reinstall the versioned runtime files and restart both units:
 
 ```sh
 sudo deploy/install-service.sh
@@ -139,6 +141,29 @@ npm run check
 ```
 
 `npm run check` verifies the copied output, page metadata, sitemap and robots policy, local assets, no analytics/cookies/remote asset references, responsive CSS hooks, the service unit, and the Tailscale setup script.
+
+### Go service foundation
+
+The Go service is configured through environment variables. The vault directory and generated preview output directory are required and must not overlap. This prevents generated output from being watched as vault input.
+
+```sh
+BLOG_VAULT_DIRECTORY=/root/obsidian-vault \
+BLOG_PREVIEW_OUTPUT_DIRECTORY=/var/lib/engineering-blog/generated-preview \
+go run ./cmd/vault-preview-service
+```
+
+To run one reconciliation without starting the watcher, use `go run ./cmd/vault-preview-service --build-once` with the same settings.
+
+Optional settings are `BLOG_DEBOUNCE_INTERVAL` (default `500ms`), `BLOG_RECONCILIATION_INTERVAL` (default `5m`), and `BLOG_PREVIEW_SERVER_URL` (default `http://127.0.0.1:8080`). Durations use Go's duration syntax. Send `SIGTERM` or press `Ctrl-C` to stop the service.
+
+Run its focused suites with:
+
+```sh
+go test ./...
+go test -tags=integration ./...
+```
+
+The integration suite builds the service and confirms that it starts using valid local configuration, then shuts it down cleanly.
 
 Run browser regression tests against the private preview:
 

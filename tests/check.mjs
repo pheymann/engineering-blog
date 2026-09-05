@@ -7,6 +7,7 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceDirectory = resolve(projectRoot, 'src/site');
 const outputDirectory = resolve(projectRoot, 'dist');
 const serviceUnit = resolve(projectRoot, 'deploy/engineering-blog.service');
+const previewServiceUnit = resolve(projectRoot, 'deploy/engineering-blog-preview.service');
 const installServiceScript = resolve(projectRoot, 'deploy/install-service.sh');
 const tailscaleSetupScript = resolve(projectRoot, 'deploy/configure-tailscale-serve.sh');
 const bannedPatterns = [
@@ -52,7 +53,6 @@ for (const requiredDirective of [
   'Environment=PORT=8080',
   'Environment=SITE_DIRECTORY=/var/lib/engineering-blog/site',
   'StateDirectory=engineering-blog',
-  'ExecStartPre=/usr/bin/npm run build',
   'ExecStart=/usr/bin/node scripts/serve.mjs',
   'Restart=on-failure',
   'StandardOutput=journal',
@@ -67,12 +67,30 @@ for (const requiredDirective of [
 }
 assert.doesNotMatch(unit, /\/root\/engineering-blog/, 'the service must not depend on the root-owned checkout at runtime.');
 
+const previewUnit = await readFile(previewServiceUnit, 'utf8');
+for (const requiredDirective of [
+  'User=root',
+  'Environment="BLOG_VAULT_DIRECTORY=/root/obsidian-vault/Engineering Blog"',
+  'Environment=BLOG_PREVIEW_OUTPUT_DIRECTORY=/var/lib/engineering-blog/site',
+  'ExecStartPre=/opt/engineering-blog/bin/vault-preview-service --build-once',
+  'ExecStart=/opt/engineering-blog/bin/vault-preview-service',
+  'Restart=on-failure',
+  'StandardOutput=journal',
+  'StandardError=journal',
+  'ProtectSystem=strict',
+  'ProtectHome=read-only'
+]) {
+  assert.match(previewUnit, new RegExp(`^${requiredDirective.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'), `preview unit needs ${requiredDirective}.`);
+}
+
 const installer = await readFile(installServiceScript, 'utf8');
 for (const requiredCommand of [
   'useradd --system --user-group --home-dir /nonexistent --shell /usr/sbin/nologin',
   'install -d -o root -g "$service_user" -m 0750 "$application_directory"',
   'chown -R root:"$service_user" "$application_directory"',
-  'install -o root -g root -m 0644 "$project_root/deploy/engineering-blog.service" /etc/systemd/system/engineering-blog.service'
+  'go build -o bin/vault-preview-service ./cmd/vault-preview-service',
+  'install -o root -g root -m 0644 "$project_root/deploy/engineering-blog.service" /etc/systemd/system/engineering-blog.service',
+  'install -o root -g root -m 0644 "$project_root/deploy/engineering-blog-preview.service" /etc/systemd/system/engineering-blog-preview.service'
 ]) {
   assert.match(installer, new RegExp(requiredCommand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `installer needs ${requiredCommand}.`);
 }

@@ -1,0 +1,44 @@
+[Unit]
+Description=Paul's Engineering Blog vault preview transformer
+Documentation=file:///opt/engineering-blog/README.md
+After=local-fs.target
+RequiresMountsFor=/opt/engineering-blog /root/obsidian-vault
+ConditionPathIsDirectory=/root/obsidian-vault/Engineering Blog
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/engineering-blog
+Environment="BLOG_VAULT_DIRECTORY=/root/obsidian-vault/Engineering Blog"
+Environment=BLOG_PREVIEW_OUTPUT_DIRECTORY=/var/lib/engineering-blog/site
+Environment=BLOG_PREVIEW_SERVER_URL=http://127.0.0.1:8080
+Environment=BLOG_DEBOUNCE_INTERVAL=500ms
+Environment=BLOG_RECONCILIATION_INTERVAL=5m
+StateDirectory=engineering-blog
+StateDirectoryMode=0755
+ExecStartPre=/opt/engineering-blog/bin/vault-preview-service --build-once
+ExecStart=/opt/engineering-blog/bin/vault-preview-service
+Restart=on-failure
+RestartSec=2s
+TimeoutStartSec=60s
+TimeoutStopSec=15s
+StandardOutput=journal
+StandardError=journal
+UMask=0022
+
+# The root-owned vault directory is intentionally mounted read-only. The
+# transformer writes only the generated StateDirectory used by the web server.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/engineering-blog
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

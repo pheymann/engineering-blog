@@ -1,7 +1,7 @@
 [Unit]
-Description=Paul's Engineering Blog local static web server
+Description=Paul's Engineering Blog local preview web server
 Documentation=file:///opt/engineering-blog/README.md
-After=local-fs.target
+After=engineering-blog-preview.service
 RequiresMountsFor=/opt/engineering-blog
 ConditionPathIsDirectory=/opt/engineering-blog/src/site
 
@@ -16,7 +16,6 @@ Environment=PORT=8080
 Environment=SITE_DIRECTORY=/var/lib/engineering-blog/site
 StateDirectory=engineering-blog
 StateDirectoryMode=0755
-ExecStartPre=/usr/bin/npm run build
 ExecStart=/usr/bin/node scripts/serve.mjs
 Restart=on-failure
 RestartSec=2s

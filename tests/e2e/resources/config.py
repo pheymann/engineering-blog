@@ -16,3 +16,10 @@ MOBILE_HEIGHT = int(os.environ.get("MOBILE_HEIGHT", "844"))
 VAULT_TEST_FIXTURE = os.environ.get(
     "VAULT_TEST_FIXTURE", "/root/obsidian-vault/.e2e-engineering-blog-fixture.md"
 )
+VAULT_PIPELINE_FIXTURE_DIRECTORY = os.environ.get(
+    "VAULT_PIPELINE_FIXTURE_DIRECTORY",
+    "/root/obsidian-vault/Engineering Blog/.e2e-engineering-blog",
+)
+PREVIEW_OUTPUT_DIRECTORY = os.environ.get(
+    "PREVIEW_OUTPUT_DIRECTORY", "/var/lib/engineering-blog/site"
+)
