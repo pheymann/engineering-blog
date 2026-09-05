@@ -82,24 +82,6 @@ a { color: inherit; }
 
 .site-content { flex: 1; padding-bottom: var(--space-5); }
 
-.section-title {
-  display: inline-block;
-  margin: 0 0 var(--space-3);
-  font-family: var(--font-display);
-  font-size: clamp(1rem, 2vw, 1.35rem);
-  font-weight: 400;
-  line-height: 1.5;
-}
-
-.section-title::after {
-  display: block;
-  width: 100%;
-  height: 0.4rem;
-  margin-top: var(--space-1);
-  content: "";
-  background: linear-gradient(90deg, var(--color-green) 0 16.666%, var(--color-yellow) 16.666% 33.333%, var(--color-orange) 33.333% 50%, var(--color-red) 50% 66.666%, var(--color-purple) 66.666% 83.333%, var(--color-blue) 83.333% 100%);
-}
-
 .post-list { display: grid; gap: var(--space-2); }
 
 .post-card {

@@ -6,7 +6,7 @@ Test Setup    Reserved Vault Fixture Must Be Absent
 Test Teardown    Reserved Vault Fixture Must Be Absent
 
 *** Test Cases ***
-Homepage Renders Newest First Cards With Five Line Excerpts
+Homepage Renders Newest First Cards With At Most Three Sentences
     Open Site Page
     Get Title    ==    Paul's Engineering Blog
     @{titles}=    Evaluate JavaScript    ${None}    () => [...document.querySelectorAll('.post-card h2')].map((element) => element.textContent.trim())
@@ -15,8 +15,8 @@ Homepage Renders Newest First Cards With Five Line Excerpts
     ${card_count}=    Get Element Count    css=.post-card
     Should Be True    ${card_count} >= 2    The two ordering fixtures must be present alongside any real preview posts.
     FOR    ${index}    IN RANGE    0    ${card_count}
-        ${break_count}=    Evaluate JavaScript    css=.post-card >> nth=${index}    (element) => element.querySelectorAll('.post-excerpt br').length
-        Should Be Equal As Integers    ${break_count}    4    Each homepage excerpt must have five lines.
+        ${sentence_count}=    Evaluate JavaScript    css=.post-card >> nth=${index}    (element) => (element.querySelector('.post-excerpt').textContent.match(/[.!?…](?:["'”’)]}»]+)?(?=\s|$)/g) || []).length
+        Should Be True    ${sentence_count} <= 3    Each homepage excerpt must have at most three sentences.
     END
 
 Cards And Logo Navigate Within The Site
@@ -36,3 +36,5 @@ Footer Links Navigate To Legal Pages
     Click    css=.footer-links a >> text=Datenschutzerklärung
     Get Url    ==    ${TARGET_URL}/datenschutzerklaerung/
     Get Text    css=article h1    ==    Datenschutzerklärung
+    ${cookies}=    Get Cookies
+    Should Be Empty    ${cookies}    The privacy page must not set browser cookies.
