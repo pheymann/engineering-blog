@@ -59,9 +59,47 @@ func TestPostRejectsRemoteImages(t *testing.T) {
 	}
 }
 
-func TestHomeOrdersPostsAndEscapesFiveLineExcerpts(t *testing.T) {
-	older := &post.Post{Title: "Older", Slug: "older", Date: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), Excerpt: "one\ntwo\nthree\nfour\nfive"}
-	newer := &post.Post{Title: "Newer", Slug: "newer", Date: time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC), Excerpt: "<one>\ntwo\nthree\nfour\nfive"}
+func TestPostLinksMarkdownFootnotesWithSafeUniqueReferenceIDs(t *testing.T) {
+	value := &post.Post{
+		Path: "post.md", Title: "Footnotes", Slug: "footnotes", Date: time.Now(),
+		Body: "First reference[^source one], repeated[^source one], and another[^source-one].\n\n## Footnotes\n\n[^source-one]: Second source\n[^source one]: [First source](https://example.com/one)",
+	}
+	html, err := Post(value)
+	if err != nil {
+		t.Fatalf("Post() error = %v", err)
+	}
+	for _, want := range []string{
+		`<sup><a href="#footnote-1" id="footnote-ref-1-1" aria-describedby="footnote-1">1</a></sup>`,
+		`<sup><a href="#footnote-1" id="footnote-ref-1-2" aria-describedby="footnote-1">1</a></sup>`,
+		`<sup><a href="#footnote-2" id="footnote-ref-2-1" aria-describedby="footnote-2">2</a></sup>`,
+		`<ol class="footnotes"><li id="footnote-1"><a href="https://example.com/one">First source</a> <a class="footnote-backref" href="#footnote-ref-1-1" aria-label="Back to reference 1">↩</a> <a class="footnote-backref" href="#footnote-ref-1-2" aria-label="Back to reference 1">↩</a></li><li id="footnote-2">Second source <a class="footnote-backref" href="#footnote-ref-2-1" aria-label="Back to reference 2">↩</a></li></ol>`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("Post() output missing %q\n%s", want, html)
+		}
+	}
+	if strings.Contains(html, `[^source one]:`) || strings.Contains(html, `[^source-one]:`) {
+		t.Fatalf("Post() rendered footnote definition syntax: %s", html)
+	}
+}
+
+func TestPostRendersFootnotesReferencedFromDefinitions(t *testing.T) {
+	value := &post.Post{
+		Path: "post.md", Title: "Footnotes", Slug: "footnotes", Date: time.Now(),
+		Body: "Reference[^first].\n\n[^first]: First definition references[^second].\n[^second]: Second definition.",
+	}
+	html, err := Post(value)
+	if err != nil {
+		t.Fatalf("Post() error = %v", err)
+	}
+	if !strings.Contains(html, `<li id="footnote-2">Second definition.`) {
+		t.Fatalf("Post() emitted a nested footnote link without its target definition: %s", html)
+	}
+}
+
+func TestHomeOrdersPostsAndEscapesThreeSentenceExcerpts(t *testing.T) {
+	older := &post.Post{Title: "Older", Slug: "older", Date: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), Excerpt: "one.\ntwo!\nthree?"}
+	newer := &post.Post{Title: "Newer", Slug: "newer", Date: time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC), Excerpt: "<one>.\ntwo!\nthree?"}
 	html, err := Home([]*post.Post{older, newer})
 	if err != nil {
 		t.Fatalf("Home() error = %v", err)
@@ -69,8 +107,11 @@ func TestHomeOrdersPostsAndEscapesFiveLineExcerpts(t *testing.T) {
 	if strings.Index(html, "Newer") > strings.Index(html, "Older") {
 		t.Error("Home() did not order newest posts first")
 	}
-	if !strings.Contains(html, `&lt;one&gt;<br>two<br>three<br>four<br>five`) {
-		t.Error("Home() did not safely retain the five-line excerpt")
+	if !strings.Contains(html, `&lt;one&gt;.<br>two!<br>three?`) {
+		t.Error("Home() did not safely retain the three-sentence excerpt")
+	}
+	if strings.Contains(html, "Latest engineering notes") || strings.Contains(html, `class="section-title"`) {
+		t.Error("Home() retained the removed latest-post heading")
 	}
 	for _, want := range []string{`<meta property="og:type" content="website">`, `href="https://engineering.paulheymann.de/"`, `href="/newer/"`} {
 		if !strings.Contains(html, want) {

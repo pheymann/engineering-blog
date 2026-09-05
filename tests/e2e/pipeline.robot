@@ -35,6 +35,15 @@ Wiki Links And Vault Images Render In The Preview
     Get Attribute    css=article a[href="/pipeline-target/"]    href    ==    /pipeline-target/
     Get Attribute    css=article img[alt="Fixture image"]    src    ==    /assets/posts/pipeline-image.svg
 
+Footnote References Navigate To Their Footer Definition
+    ${content}=    Catenate    SEPARATOR=\n    ---    date: 2026-09-05    ---    \# Footnote Navigation    \#blog \#engineering \#preview    A fixture footnote reference[^source].    ${EMPTY}    [^source]: Fixture footnote definition.
+    Write Pipeline Fixture    Footnote Navigation.md    ${content}
+    Wait For Preview Route    footnote-navigation
+    Open Site Page    /footnote-navigation/
+    Click    css=article sup > a[href="#footnote-1"]
+    Wait For Elements State    css=li#footnote-1    visible
+    Get Url    ==    ${TARGET_URL}/footnote-navigation/#footnote-1
+
 Validation Failure Leaves The Last Valid Preview Available
     ${valid}=    Catenate    SEPARATOR=\n    ---    date: 2026-09-05    ---    \# Pipeline Rollback    \#blog \#engineering \#preview    Valid snapshot.
     Write Pipeline Fixture    Pipeline Rollback.md    ${valid}

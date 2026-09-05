@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 var (
@@ -61,7 +62,7 @@ func Parse(filePath, markdown string) (*Post, error) {
 		Redirects: redirects,
 		Tags:      tags,
 		Slug:      slug,
-		Excerpt:   firstTextLines(postBody, 5),
+		Excerpt:   firstTextSentences(postBody, 3),
 		Body:      postBody,
 	}, nil
 }
@@ -187,19 +188,55 @@ func isPreviewPost(tags []string) bool {
 	return contains(tags, "blog") && contains(tags, "engineering") && contains(tags, "preview")
 }
 
-func firstTextLines(body string, count int) string {
-	selected := make([]string, 0, count)
+func firstTextSentences(body string, count int) string {
+	selected := make([]string, 0)
 	for _, line := range strings.Split(body, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || isImageOnly(line) {
 			continue
 		}
 		selected = append(selected, line)
-		if len(selected) == count {
-			break
+	}
+
+	excerpt := strings.Join(selected, "\n")
+	end := sentenceEnd(excerpt, count)
+	if end == -1 {
+		return excerpt
+	}
+	return strings.TrimSpace(excerpt[:end])
+}
+
+// sentenceEnd returns the byte position immediately after the requested
+// sentence. It recognizes normal terminal punctuation and closing quotes or
+// brackets that follow it, while requiring whitespace or end-of-text next.
+func sentenceEnd(text string, count int) int {
+	sentences := 0
+	for index, character := range text {
+		if character != '.' && character != '!' && character != '?' && character != '…' {
+			continue
+		}
+
+		end := index + len(string(character))
+		for end < len(text) {
+			closing, size := utf8.DecodeRuneInString(text[end:])
+			if !strings.ContainsRune(`\"'”’)]}»`, closing) {
+				break
+			}
+			end += size
+		}
+		if end < len(text) {
+			next, _ := utf8.DecodeRuneInString(text[end:])
+			if !unicode.IsSpace(next) {
+				continue
+			}
+		}
+
+		sentences++
+		if sentences == count {
+			return end
 		}
 	}
-	return strings.Join(selected, "\n")
+	return -1
 }
 
 func isImageOnly(line string) bool {

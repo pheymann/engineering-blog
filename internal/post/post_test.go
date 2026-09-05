@@ -16,12 +16,8 @@ redirect:
 ---
 # A Local-First Engineering Blog
 #blog #engineering #preview #notes
-first line
-second line
-third line
-fourth line
-fifth line
-sixth line`
+First sentence. Second sentence! Third sentence? Fourth sentence.
+Sixth sentence.`
 
 	tests := []struct {
 		name        string
@@ -46,8 +42,8 @@ sixth line`
 			wantSlug:    "a-local-first-engineering-blog",
 			wantTags:    []string{"blog", "engineering", "preview", "notes"},
 			wantRedirs:  []string{"/previous-title/", "/older-title/"},
-			wantExcerpt: "first line\nsecond line\nthird line\nfourth line\nfifth line",
-			wantBody:    "first line\nsecond line\nthird line\nfourth line\nfifth line\nsixth line",
+			wantExcerpt: "First sentence. Second sentence! Third sentence?",
+			wantBody:    "First sentence. Second sentence! Third sentence? Fourth sentence.\nSixth sentence.",
 		},
 		{
 			name:     "irrelevant tags are ignored without metadata",
@@ -169,8 +165,8 @@ func TestParseRemovesMatchingH1AfterBodyTags(t *testing.T) {
 	}
 }
 
-func TestParseExcerptSkipsTagsImagesAndBlankLines(t *testing.T) {
-	markdown := "---\ndate: 2026-09-05\n---\n#blog #engineering #preview\n\n![[hero image.png]]\n\nFirst text line.\n\nSecond text line.\nThird text line.\nFourth text line.\nFifth text line.\nSixth text line."
+func TestParseExcerptSkipsTagsImagesAndBlankLinesAndStopsAtThreeSentences(t *testing.T) {
+	markdown := "---\ndate: 2026-09-05\n---\n#blog #engineering #preview\n\n![[hero image.png]]\n\nFirst text line. Second text line!\n\nThird text line?\nFourth text line.\nFifth text line.\nSixth text line."
 
 	parsed, err := Parse("Preview.md", markdown)
 	if err != nil {
@@ -179,8 +175,15 @@ func TestParseExcerptSkipsTagsImagesAndBlankLines(t *testing.T) {
 	if strings.Contains(parsed.Body, "#blog") {
 		t.Fatalf("Parse() body retains deployment tags: %q", parsed.Body)
 	}
-	want := "First text line.\nSecond text line.\nThird text line.\nFourth text line.\nFifth text line."
+	want := "First text line. Second text line!\nThird text line?"
 	if parsed.Excerpt != want {
 		t.Fatalf("Parse() excerpt = %q, want %q", parsed.Excerpt, want)
+	}
+}
+
+func TestFirstTextSentencesKeepsClosingPunctuationAndLineFormatting(t *testing.T) {
+	body := "First sentence.\nSecond sentence (really!).\nThird sentence?\nFourth sentence."
+	if got, want := firstTextSentences(body, 3), "First sentence.\nSecond sentence (really!).\nThird sentence?"; got != want {
+		t.Fatalf("firstTextSentences() = %q, want %q", got, want)
 	}
 }

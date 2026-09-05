@@ -34,7 +34,7 @@ func Post(value *post.Post) (string, error) {
 }
 
 // Home renders all supplied posts newest first. Each card preserves the first
-// five parsed body lines as the post package derived them.
+// three parsed body sentences as the post package derived them.
 func Home(posts []*post.Post) (string, error) {
 	ordered := append([]*post.Post(nil), posts...)
 	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Date.After(ordered[j].Date) })
@@ -52,7 +52,7 @@ func Home(posts []*post.Post) (string, error) {
 	}
 	description := "Notes on building calm, useful software by Paul Heymann."
 	return document("Paul's Engineering Blog", description, "website", canonicalBase+"/",
-		`<main class="site-content"><h1 class="section-title">Latest engineering notes</h1><div class="post-list">`+cards.String()+`</div></main>`), nil
+		`<main class="site-content"><div class="post-list">`+cards.String()+`</div></main>`), nil
 }
 
 func document(title, description, kind, canonical, main string) string {
@@ -95,9 +95,14 @@ func plainText(markdown string) string {
 
 func markdown(source string) (string, error) {
 	lines := strings.Split(strings.ReplaceAll(source, "\r\n", "\n"), "\n")
+	renderer := newMarkdownRenderer(lines)
 	var output strings.Builder
 	for index := 0; index < len(lines); {
 		line := lines[index]
+		if _, _, ok := footnoteDefinition(line); ok {
+			index++
+			continue
+		}
 		if strings.TrimSpace(line) == "" {
 			index++
 			continue
@@ -107,7 +112,7 @@ func markdown(source string) (string, error) {
 			continue
 		}
 		if level, text, ok := heading(line); ok {
-			output.WriteString(fmt.Sprintf("<h%d>%s</h%d>", level, inline(text), level))
+			output.WriteString(fmt.Sprintf("<h%d>%s</h%d>", level, renderer.inline(text), level))
 			index++
 			continue
 		}
@@ -117,11 +122,11 @@ func markdown(source string) (string, error) {
 				quote = append(quote, strings.TrimSpace(strings.TrimPrefix(lines[index], ">")))
 				index++
 			}
-			output.WriteString("<blockquote><p>" + inline(strings.Join(quote, " ")) + "</p></blockquote>")
+			output.WriteString("<blockquote><p>" + renderer.inline(strings.Join(quote, " ")) + "</p></blockquote>")
 			continue
 		}
 		if ordered, item, ok := listItem(line); ok {
-			index = renderList(lines, index, ordered, item, &output)
+			index = renderList(lines, index, ordered, item, &output, renderer)
 			continue
 		}
 		if strings.HasPrefix(strings.TrimSpace(line), "!") {
@@ -134,7 +139,7 @@ func markdown(source string) (string, error) {
 			}
 		}
 		var paragraph []string
-		for index < len(lines) && strings.TrimSpace(lines[index]) != "" && !strings.HasPrefix(lines[index], "```") && !strings.HasPrefix(lines[index], ">") {
+		for index < len(lines) && strings.TrimSpace(lines[index]) != "" && !strings.HasPrefix(lines[index], "```") && !strings.HasPrefix(lines[index], ">") && !isFootnoteDefinition(lines[index]) {
 			if len(paragraph) > 0 {
 				if _, _, ok := heading(lines[index]); ok {
 					break
@@ -146,8 +151,9 @@ func markdown(source string) (string, error) {
 			paragraph = append(paragraph, strings.TrimSpace(lines[index]))
 			index++
 		}
-		output.WriteString("<p>" + inline(strings.Join(paragraph, " ")) + "</p>")
+		output.WriteString("<p>" + renderer.inline(strings.Join(paragraph, " ")) + "</p>")
 	}
+	renderer.writeFootnotes(&output)
 	return output.String(), nil
 }
 
@@ -199,19 +205,19 @@ func listItem(line string) (bool, string, bool) {
 
 func allDigits(value string) bool { return value != "" && strings.Trim(value, "0123456789") == "" }
 
-func renderList(lines []string, index int, ordered bool, first string, output *strings.Builder) int {
+func renderList(lines []string, index int, ordered bool, first string, output *strings.Builder, renderer *markdownRenderer) int {
 	tag := "ul"
 	if ordered {
 		tag = "ol"
 	}
-	output.WriteString("<" + tag + "><li>" + inline(first) + "</li>")
+	output.WriteString("<" + tag + "><li>" + renderer.inline(first) + "</li>")
 	index++
 	for index < len(lines) {
 		isOrdered, item, ok := listItem(lines[index])
 		if !ok || isOrdered != ordered {
 			break
 		}
-		output.WriteString("<li>" + inline(item) + "</li>")
+		output.WriteString("<li>" + renderer.inline(item) + "</li>")
 		index++
 	}
 	output.WriteString("</" + tag + ">")
@@ -238,9 +244,82 @@ func imageLine(line string) (string, bool, error) {
 	return "<figure>" + image + "</figure>", true, nil
 }
 
-func inline(text string) string {
+type footnote struct {
+	content    string
+	number     int
+	references int
+}
+
+type markdownRenderer struct {
+	footnotes map[string]*footnote
+	ordered   []*footnote
+}
+
+func newMarkdownRenderer(lines []string) *markdownRenderer {
+	renderer := &markdownRenderer{footnotes: make(map[string]*footnote)}
+	inFence := false
+	for _, line := range lines {
+		if strings.HasPrefix(line, "```") {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			continue
+		}
+		label, content, ok := footnoteDefinition(line)
+		if !ok {
+			continue
+		}
+		if _, exists := renderer.footnotes[label]; exists {
+			continue
+		}
+		footnote := &footnote{content: content}
+		renderer.footnotes[label] = footnote
+	}
+	return renderer
+}
+
+func isFootnoteDefinition(line string) bool {
+	_, _, ok := footnoteDefinition(line)
+	return ok
+}
+
+func footnoteDefinition(line string) (string, string, bool) {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "[^") {
+		return "", "", false
+	}
+	end := strings.Index(trimmed, "]:")
+	if end < 2 {
+		return "", "", false
+	}
+	label := strings.TrimSpace(trimmed[2:end])
+	if label == "" {
+		return "", "", false
+	}
+	return label, strings.TrimSpace(trimmed[end+2:]), true
+}
+
+func (renderer *markdownRenderer) inline(text string) string {
 	var output strings.Builder
 	for len(text) > 0 {
+		if strings.HasPrefix(text, "[^") {
+			if end := strings.Index(text, "]"); end > 2 {
+				label := strings.TrimSpace(text[2:end])
+				if footnote, ok := renderer.footnotes[label]; ok {
+					if footnote.number == 0 {
+						footnote.number = len(renderer.ordered) + 1
+						renderer.ordered = append(renderer.ordered, footnote)
+					}
+					footnote.references++
+					referenceID := fmt.Sprintf("footnote-ref-%d-%d", footnote.number, footnote.references)
+					footnoteID := fmt.Sprintf("footnote-%d", footnote.number)
+					output.WriteString(`<sup><a href="#` + footnoteID + `" id="` + referenceID + `" aria-describedby="` + footnoteID + `">` + fmt.Sprint(footnote.number) + `</a></sup>`)
+					text = text[end+1:]
+					continue
+				}
+			}
+		}
 		if strings.HasPrefix(text, "[") {
 			if endText := strings.Index(text, "]("); endText > 0 {
 				if endURL := strings.Index(text[endText+2:], ")"); endURL >= 0 {
@@ -275,6 +354,26 @@ func inline(text string) string {
 		text = text[size:]
 	}
 	return output.String()
+}
+
+func (renderer *markdownRenderer) writeFootnotes(output *strings.Builder) {
+	if len(renderer.ordered) == 0 {
+		return
+	}
+	output.WriteString(`<ol class="footnotes">`)
+	// Rendering a definition can discover more definitions. Iterate by index so
+	// entries appended by inline() are emitted in this same footer exactly once.
+	for index := 0; index < len(renderer.ordered); index++ {
+		footnote := renderer.ordered[index]
+		footnoteID := fmt.Sprintf("footnote-%d", footnote.number)
+		output.WriteString(`<li id="` + footnoteID + `">` + renderer.inline(footnote.content))
+		for reference := 1; reference <= footnote.references; reference++ {
+			referenceID := fmt.Sprintf("footnote-ref-%d-%d", footnote.number, reference)
+			output.WriteString(` <a class="footnote-backref" href="#` + referenceID + `" aria-label="Back to reference ` + fmt.Sprint(footnote.number) + `">↩</a>`)
+		}
+		output.WriteString(`</li>`)
+	}
+	output.WriteString(`</ol>`)
 }
 
 func splitDestination(destination string) (string, string) {
