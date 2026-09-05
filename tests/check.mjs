@@ -101,6 +101,10 @@ const outputIndex = await readFile(resolve(outputDirectory, 'index.html'), 'utf8
 assert.match(outputIndex, /<link rel="stylesheet" href="\/assets\/styles\.css">/);
 assert.match(outputIndex, /src="\/assets\/images\/pauls-engineering-blog\.svg"/);
 assert.equal((outputIndex.match(/class="post-card"/g) ?? []).length, 0, 'Checked-in homepage must not contain mock posts.');
+assert.doesNotMatch(outputIndex, /Latest engineering notes|class="section-title"/, 'Checked-in homepage must not retain the removed latest-post heading.');
+
+const sourceIndex = await readFile(resolve(sourceDirectory, 'index.html'), 'utf8');
+assert.doesNotMatch(sourceIndex, /Latest engineering notes|class="section-title"/, 'Homepage source must not retain the removed latest-post heading.');
 
 const sourceStyles = await readFile(resolve(sourceDirectory, 'assets/styles.css'), 'utf8');
 assert.match(sourceStyles, /--color-page:/);
@@ -109,6 +113,8 @@ assert.match(sourceStyles, /--side-margin:/);
 assert.match(sourceStyles, /body\s*\{[^}]*display:\s*flex;[^}]*min-height:\s*100vh;[^}]*flex-direction:\s*column;/s);
 assert.match(sourceStyles, /\.site-content\s*\{[^}]*flex:\s*1;/s);
 assert.match(sourceStyles, /@media \(max-width: 42rem\)/);
+assert.match(sourceStyles, /\.post\s*\{[^}]*max-width:\s*700px;/s, 'Post bodies must be capped at 700px.');
+assert.doesNotMatch(sourceStyles, /\.section-title(?:\s|:|\{)/, 'Homepage heading styles must be removed when unused.');
 assert.doesNotMatch(sourceStyles, /border-radius\s*:/);
 
 for (const fontFile of [
@@ -123,6 +129,19 @@ await access(resolve(sourceDirectory, 'assets/images/pauls-engineering-blog.svg'
 await access(resolve(sourceDirectory, 'assets/images/static-publishing-path.svg'));
 await access(resolve(sourceDirectory, 'robots.txt'));
 await access(resolve(sourceDirectory, 'sitemap.xml'));
+
+const logo = await readFile(resolve(sourceDirectory, 'assets/images/pauls-engineering-blog.svg'), 'utf8');
+assert.match(logo, /<title id="title">Paul's Engineering Blog<\/title>/, 'Logo needs an accessible title.');
+assert.match(logo, /<desc id="description">/, 'Logo needs an accessible description.');
+assert.match(logo, /aria-labelledby="title description"/, 'Logo must expose its title and description.');
+assert.match(logo, />Paul's<\/text>/, 'The rainbow wordmark must visibly include the apostrophe.');
+assert.doesNotMatch(
+  logo,
+  /letter-spacing="-\d+"[^>]*>Paul's<\/text>/,
+  'The visible apostrophe must not be merged into the final letter by negative tracking.'
+);
+assert.match(logo, /<text\b[^>]*fill="#111111"[^>]*>ENGINEERING BLOG<\/text>/, 'Engineering Blog must remain black.');
+assert.match(logo, /viewBox="0 0 1050 145"/, 'The logo canvas must leave room for a single-line title.');
 
 const robots = await readFile(resolve(outputDirectory, 'robots.txt'), 'utf8');
 assert.match(robots, /^User-agent: \*\nAllow: \/\nSitemap: https:\/\/engineering\.paulheymann\.de\/sitemap\.xml$/m);
@@ -141,6 +160,33 @@ for (const [index, page] of publicPages.entries()) {
   assert.doesNotMatch(content, /<script\b/i, `${page} must not require JavaScript.`);
   assert.doesNotMatch(content, /document\.cookie/i, `${page} must not set cookies.`);
 }
+
+const impressum = await readFile(resolve(outputDirectory, 'impressum/index.html'), 'utf8');
+assert.match(impressum, /<h1>Impressum<\/h1>/, 'The Impressum needs a page heading.');
+assert.match(impressum, /<h2 id="angaben-gemaess-5-ddg">Angaben gemäß § 5 DDG<\/h2>/, 'The provider information must cite the current German Digital Services Act.');
+assert.doesNotMatch(impressum, /\bTMG\b/, 'The Impressum must not cite the superseded Telemedia Act.');
+assert.match(impressum, /Paul Heymann<br>Hilleborchstraße 3<br>38855 Wernigerode/, 'The Impressum must include the supplied postal address.');
+assert.match(impressum, /<a href="mailto:contact@paulheymann\.de">contact@paulheymann\.de<\/a>/, 'The Impressum email address must be a functional mailto link.');
+assert.doesNotMatch(impressum, /This page is a placeholder\./, 'The Impressum must not retain its placeholder text.');
+
+const privacy = await readFile(resolve(outputDirectory, 'datenschutzerklaerung/index.html'), 'utf8');
+assert.match(privacy, /<h1>Datenschutzerklärung<\/h1>/, 'The privacy notice needs a page heading.');
+assert.match(privacy, /<meta name="description" content="[^"]*Datenschutzerklärung[^\"]*(?:für|zum|des|von)[^\"]*">/, 'The German privacy notice needs a German meta description.');
+assert.match(privacy, /<meta property="og:description" content="[^"]*Datenschutzerklärung[^\"]*(?:für|zum|des|von)[^\"]*">/, 'The German privacy notice needs a German Open Graph description.');
+assert.doesNotMatch(privacy, /This page is a placeholder\./, 'The privacy notice must not retain its placeholder text.');
+assert.match(privacy, /Paul Heymann<br>Hilleborchstraße 3<br>38855 Wernigerode/, 'The privacy notice must identify the controller and postal address.');
+assert.match(privacy, /mailto:contact@paulheymann\.de/, 'The privacy notice must provide a contact email address.');
+assert.match(privacy, /Cloudflare/, 'The privacy notice must name its delivery provider.');
+assert.match(privacy, /IP-Adresse/, 'The privacy notice must explain necessary request data.');
+assert.match(privacy, /Art\. 6 Abs\. 1 lit\. f DSGVO/, 'The privacy notice must state its legal basis.');
+assert.match(privacy, /https:\/\/www\.cloudflare\.com\/policies\/privacy\//, 'The privacy notice must link Cloudflare’s privacy policy.');
+assert.match(privacy, /https:\/\/www\.cloudflare\.com\/cloudflare-customer-dpa\//, 'The privacy notice must link Cloudflare’s DPA.');
+assert.match(privacy, /Standardvertragsklauseln/, 'The privacy notice must describe transfer safeguards without fixing a configuration.');
+assert.match(privacy, /EU-US Data Privacy Framework/, 'The privacy notice must qualify the applicable transfer mechanism.');
+assert.match(privacy, /Art und Sensibilität der Daten/, 'The privacy notice must give retention criteria rather than invent a fixed period.');
+assert.match(privacy, /keine Cookies, keine Reichweitenmessung, keine Werbung, kein Tracking, keine Formulare, keine Benutzerkonten und kein clientseitiges JavaScript/, 'The privacy notice must accurately state this site’s additional data practices.');
+assert.match(privacy, /Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit sowie Widerspruch/, 'The privacy notice must explain data-subject rights.');
+assert.match(privacy, /Datenschutz-Aufsichtsbehörde/, 'The privacy notice must explain the right to complain.');
 
 for (const filePath of [...sourceFiles, ...outputFiles]) {
   if (!textExtensions.has(filePath.slice(filePath.lastIndexOf('.')))) {
