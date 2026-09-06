@@ -373,7 +373,7 @@ printf '<svg xmlns="http://www.w3.org/2000/svg"><text>diagram</text></svg>\n' > 
 	write(t, puppeteerConfig, "{}\n")
 	postPath := filepath.Join(vault, "Diagram post.md")
 	write(t, postPath, postSource("Diagram post", "2026-09-05", "", "#blog #engineering #preview\n\n```mermaid\ngraph TD\n  A --> B\n```"))
-	config := Config{VaultDirectory: vault, StaticDirectory: static, OutputDirectory: output, MermaidCommand: command, MermaidConfig: puppeteerConfig}
+	config := Config{VaultDirectory: vault, StaticDirectory: static, OutputDirectory: output, MermaidCommand: command, MermaidConfig: puppeteerConfig, PreserveRemoved: true}
 
 	if _, err := Build(config); err != nil {
 		t.Fatalf("Build() error = %v", err)
@@ -386,6 +386,7 @@ printf '<svg xmlns="http://www.w3.org/2000/svg"><text>diagram</text></svg>\n' > 
 	if err != nil || len(diagrams) != 1 || !strings.Contains(read(t, diagrams[0]), "<svg") {
 		t.Fatalf("generated diagrams = %v, %v", diagrams, err)
 	}
+	previousSVG := read(t, diagrams[0])
 
 	previous := page
 	write(t, postPath, postSource("Diagram post", "2026-09-05", "", "#blog #engineering #preview\n\n```mermaid\nINVALID\n```"))
@@ -394,6 +395,9 @@ printf '<svg xmlns="http://www.w3.org/2000/svg"><text>diagram</text></svg>\n' > 
 	}
 	if got := read(t, filepath.Join(output, "diagram-post", "index.html")); got != previous {
 		t.Fatal("failed Mermaid build replaced the last valid preview")
+	}
+	if got := read(t, diagrams[0]); got != previousSVG {
+		t.Fatal("failed PreserveRemoved build mutated the live Mermaid SVG through a staged hardlink")
 	}
 }
 

@@ -51,12 +51,14 @@ func run(buildOnce bool) error {
 		VaultDirectory:  configuration.VaultDirectory,
 		StaticDirectory: staticDirectory,
 		OutputDirectory: configuration.PreviewOutputDirectory,
+		MermaidUser:     os.Getenv("BLOG_MERMAID_USER"),
 	}
 	productionBuilder := previewbuilder.Config{
 		VaultDirectory: configuration.VaultDirectory, StaticDirectory: staticDirectory,
 		OutputDirectory: configuration.ProductionOutputDirectory,
 		StatePath:       configuration.ProductionStatePath,
 		DeploymentTag:   "publish", PreserveRemoved: true,
+		MermaidUser: os.Getenv("BLOG_MERMAID_USER"),
 	}
 	build := func() error {
 		if _, err := previewbuilder.Build(builder); err != nil {

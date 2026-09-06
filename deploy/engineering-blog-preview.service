@@ -21,6 +21,7 @@ EnvironmentFile=-/etc/engineering-blog/git-publisher.env
 Environment=BLOG_PREVIEW_SERVER_URL=http://127.0.0.1:8080
 Environment=BLOG_DEBOUNCE_INTERVAL=500ms
 Environment=BLOG_RECONCILIATION_INTERVAL=5m
+Environment=BLOG_MERMAID_USER=engineering-blog-mermaid
 StateDirectory=engineering-blog
 StateDirectoryMode=0755
 ExecStartPre=/opt/engineering-blog/bin/vault-preview-service --build-once

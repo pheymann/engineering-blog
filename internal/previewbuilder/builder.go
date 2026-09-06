@@ -45,6 +45,7 @@ type Config struct {
 	PreserveRemoved bool
 	MermaidCommand  string
 	MermaidConfig   string
+	MermaidUser     string
 }
 
 // Result describes whether Build committed a new preview.
@@ -113,7 +114,7 @@ func Build(config Config) (Result, error) {
 	if config.PreserveRemoved {
 		posts = mergePreservedPosts(posts, previous)
 	}
-	if err := populate(stage, config.StaticDirectory, posts, graph, previous, previous.RenderVersion != renderVersion || !outputIntact, config.PreserveRemoved, config.MermaidCommand, config.MermaidConfig); err != nil {
+	if err := populate(stage, config.StaticDirectory, posts, graph, previous, previous.RenderVersion != renderVersion || !outputIntact, config.PreserveRemoved, config.MermaidCommand, config.MermaidConfig, config.MermaidUser); err != nil {
 		return Result{}, err
 	}
 	files, err := fileManifest(stage)
@@ -208,7 +209,7 @@ func loadPosts(root, deploymentTag string) ([]*post.Post, error) {
 	return posts, nil
 }
 
-func populate(stage, static string, posts []*post.Post, graph *contentgraph.Graph, previous buildState, renderAll, preserveRemoved bool, mermaidCommand, mermaidConfig string) error {
+func populate(stage, static string, posts []*post.Post, graph *contentgraph.Graph, previous buildState, renderAll, preserveRemoved bool, mermaidCommand, mermaidConfig, mermaidUser string) error {
 	current := postStates(posts)
 	preserved := make(map[string]bool)
 	for _, value := range posts {
@@ -252,16 +253,21 @@ func populate(stage, static string, posts []*post.Post, graph *contentgraph.Grap
 			return err
 		}
 	}
+	usedDiagrams := map[string]bool{}
 	for _, value := range posts {
 		if preserveRemoved && value.Path == "" {
+			collectDiagramReferences(filepath.Join(stage, value.Slug, "index.html"), usedDiagrams)
 			continue
 		}
 		rendered := cloneForRender(value, graph.Links[value.Path])
-		body, err := renderMermaidDiagrams(rendered.Body, rendered.Path, rendered.Slug, filepath.Join(stage, "assets", "diagrams"), mermaidCommand, mermaidConfig)
+		body, diagrams, err := renderMermaidDiagrams(rendered.Body, rendered.Path, rendered.Slug, filepath.Join(stage, "assets", "diagrams"), mermaidCommand, mermaidConfig, mermaidUser)
 		if err != nil {
 			return err
 		}
 		rendered.Body = body
+		for name := range diagrams {
+			usedDiagrams[name] = true
+		}
 		if !renderAll {
 			if old, found := previous.Posts[value.Slug]; found && old.Fingerprint == current[value.Slug].Fingerprint {
 				continue
@@ -275,6 +281,9 @@ func populate(stage, static string, posts []*post.Post, graph *contentgraph.Grap
 		if err := writeFile(filepath.Join(stage, value.Slug, "index.html"), []byte(html)); err != nil {
 			return err
 		}
+	}
+	if err := pruneDiagrams(filepath.Join(stage, "assets", "diagrams"), usedDiagrams); err != nil {
+		return err
 	}
 	home, err := render.Home(posts)
 	if err != nil {
@@ -296,6 +305,37 @@ func populate(stage, static string, posts []*post.Post, graph *contentgraph.Grap
 		return err
 	}
 	return writeFile(filepath.Join(stage, "sitemap.xml"), []byte(sitemap(posts)))
+}
+
+var diagramReference = regexp.MustCompile(`/assets/diagrams/([^"')\s]+\.svg)`)
+
+func collectDiagramReferences(page string, used map[string]bool) {
+	b, err := os.ReadFile(page)
+	if err != nil {
+		return
+	}
+	for _, match := range diagramReference.FindAllStringSubmatch(string(b), -1) {
+		used[match[1]] = true
+	}
+}
+
+func pruneDiagrams(directory string, used map[string]bool) error {
+	entries, err := os.ReadDir(directory)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".svg" || used[entry.Name()] {
+			continue
+		}
+		if err := os.Remove(filepath.Join(directory, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func markPortraitImages(page string, assets []contentgraph.Asset) string {

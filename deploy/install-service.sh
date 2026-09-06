@@ -7,6 +7,7 @@ state_directory=${ENGINEERING_BLOG_STATE_DIRECTORY:-/var/lib/engineering-blog}
 unit_directory=${ENGINEERING_BLOG_UNIT_DIRECTORY:-/etc/systemd/system}
 systemctl_command=${ENGINEERING_BLOG_SYSTEMCTL:-systemctl}
 service_user=engineering-blog
+mermaid_user=engineering-blog-mermaid
 legacy_state_file=.engineering-blog-production-state.json
 service_was_active=false
 
@@ -33,6 +34,10 @@ is_known_legacy_layout() {
 if ! id "$service_user" >/dev/null 2>&1; then
 	useradd --system --user-group --home-dir /nonexistent --shell /usr/sbin/nologin "$service_user"
 fi
+if ! id "$mermaid_user" >/dev/null 2>&1; then
+	useradd --system --user-group --home-dir /nonexistent --shell /usr/sbin/nologin "$mermaid_user"
+fi
+usermod -a -G "$service_user" "$mermaid_user"
 
 install -d -o root -g "$service_user" -m 0750 "$application_directory"
 if ! git -C "$project_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
