@@ -50,7 +50,7 @@ func Home(posts []*post.Post) (string, error) {
 		cards.WriteString(excerptHTML(value.Excerpt))
 		cards.WriteString(`</p><span class="post-card-link">Read note <span aria-hidden="true">→</span></span></a>`)
 	}
-	description := "Notes on building calm, useful software by Paul Heymann."
+	description := "Sharing experiences on AI, software, and leading teams."
 	return document("Paul's Engineering Blog", description, "website", canonicalBase+"/",
 		`<main class="site-content"><p class="homepage-intro">Hi, I am Paul and I am a Staff Engineer and Engineering Manager from Germany. Talk to me on <a href="https://www.linkedin.com/in/paul-heymann-6b4a53144/">LinkedIn</a> or send me an email at <a href="mailto:contact@paulheymann.de">contact@paulheymann.de</a>.</p><div class="post-list">`+cards.String()+`</div></main>`), nil
 }
