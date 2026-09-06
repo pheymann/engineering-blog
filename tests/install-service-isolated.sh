@@ -33,6 +33,8 @@ ENGINEERING_BLOG_SYSTEMCTL_LOG="$log" \
 sh "$project_root/deploy/install-service.sh"
 
 git -C "$application" rev-parse --is-inside-work-tree >/dev/null
+git -C "$application" diff --quiet
+git -C "$application" diff --cached --quiet
 test -f "$state/production-state.json"
 grep -Fx 'legacy production state' "$state/production-state.json" >/dev/null
 grep -Fx 'stop engineering-blog-preview.service' "$log" >/dev/null

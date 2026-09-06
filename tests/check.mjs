@@ -88,13 +88,14 @@ const installer = await readFile(installServiceScript, 'utf8');
 for (const requiredCommand of [
   'useradd --system --user-group --home-dir /nonexistent --shell /usr/sbin/nologin',
   'install -d -o root -g "$service_user" -m 0750 "$application_directory"',
-  'chown -R root:"$service_user" "$application_directory"',
+  'chown root:"$service_user" "$application_directory"',
   'go build -o bin/vault-preview-service ./cmd/vault-preview-service',
   'install -o root -g root -m 0644 "$project_root/deploy/engineering-blog.service" "$unit_directory/engineering-blog.service"',
   'install -o root -g root -m 0644 "$project_root/deploy/engineering-blog-preview.service" "$unit_directory/engineering-blog-preview.service"'
 ]) {
   assert.match(installer, new RegExp(requiredCommand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `installer needs ${requiredCommand}.`);
 }
+assert.doesNotMatch(installer, /find "\$application_directory" -type [df] -exec chmod/, 'installer must preserve Git-recorded file modes.');
 for (const requiredSafetyCheck of [
   '"$systemctl_command" stop engineering-blog-preview.service 2>/dev/null || true',
   'git -C "$application_directory" fetch origin main',

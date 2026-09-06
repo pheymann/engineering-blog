@@ -48,6 +48,29 @@ func TestPublishRejectsPreexistingStagedDocsChanges(t *testing.T) {
 	}
 }
 
+func TestPublishMissingIdentityLeavesGeneratedDocsUnstaged(t *testing.T) {
+	repository, _ := newRepository(t)
+	git(t, repository, "config", "--unset", "user.name")
+	git(t, repository, "config", "--unset", "user.email")
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "empty-gitconfig"))
+	write(t, filepath.Join(repository, "docs", "index.html"), "generated")
+
+	published, err := Publish(Config{RepositoryDirectory: repository, OutputDirectory: filepath.Join(repository, "docs")})
+	if published || err == nil || !strings.Contains(err.Error(), "author identity") {
+		t.Fatalf("Publish() = %t, %v", published, err)
+	}
+	if got := git(t, repository, "status", "--short", "docs/index.html"); got != "?? docs/index.html" {
+		t.Fatalf("missing identity staged generated docs: %q", got)
+	}
+	git(t, repository, "config", "user.name", "Recovered Publisher")
+	git(t, repository, "config", "user.email", "recovered@example.test")
+	published, err = Publish(Config{RepositoryDirectory: repository, OutputDirectory: filepath.Join(repository, "docs")})
+	if !published || err != nil {
+		t.Fatalf("Publish() after identity recovery = %t, %v", published, err)
+	}
+}
+
 func TestPublishNoopDoesNotCommitOrPush(t *testing.T) {
 	repository, _ := newRepository(t)
 	if err := os.Mkdir(filepath.Join(repository, "docs"), 0o755); err != nil {

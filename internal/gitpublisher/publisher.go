@@ -34,10 +34,7 @@ func Publish(config Config) (bool, error) {
 	if staged {
 		return false, fmt.Errorf("refuse to publish: generated output already has staged changes; resolve the dirty Git index first")
 	}
-	if err := run(repository, "add", "--", output); err != nil {
-		return false, fmt.Errorf("stage generated output: %w", err)
-	}
-	changed, err := hasStagedOutput(repository, output)
+	changed, err := hasWorktreeOutputChanges(repository, output)
 	if err != nil {
 		return false, err
 	}
@@ -45,6 +42,15 @@ func Publish(config Config) (bool, error) {
 		if err := run(repository, "var", "GIT_AUTHOR_IDENT"); err != nil {
 			return false, fmt.Errorf("Git author identity is not configured: %w", err)
 		}
+	}
+	if err := run(repository, "add", "--", output); err != nil {
+		return false, fmt.Errorf("stage generated output: %w", err)
+	}
+	changed, err = hasStagedOutput(repository, output)
+	if err != nil {
+		return false, err
+	}
+	if changed {
 		// --only prevents pre-existing staged changes outside docs from becoming
 		// part of the generated-site commit.
 		if err := run(repository, "commit", "--only", "-m", commitMessage, "--", output); err != nil {
@@ -57,6 +63,16 @@ func Publish(config Config) (bool, error) {
 		return changed, fmt.Errorf("push generated output to origin/main: %w", err)
 	}
 	return true, nil
+}
+
+func hasWorktreeOutputChanges(repository, output string) (bool, error) {
+	command := exec.Command("git", "status", "--porcelain", "--", output)
+	command.Dir = repository
+	contents, err := command.Output()
+	if err != nil {
+		return false, fmt.Errorf("inspect generated output: %w", err)
+	}
+	return len(bytes.TrimSpace(contents)) > 0, nil
 }
 
 // pendingPublish recognizes only the docs-only commit this package created.

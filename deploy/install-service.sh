@@ -82,10 +82,10 @@ git clone --no-local "$project_root" "$application_directory"
 git -C "$application_directory" remote set-url origin "$(git -C "$project_root" remote get-url origin)"
 mkdir -p "$application_directory/bin"
 (cd "$application_directory" && go build -o bin/vault-preview-service ./cmd/vault-preview-service)
-chown -R root:"$service_user" "$application_directory"
-find "$application_directory" -type d -exec chmod 0750 {} +
-find "$application_directory" -type f -exec chmod 0640 {} +
-chmod 0755 "$application_directory/bin/vault-preview-service"
+# Keep modes recorded by Git intact; recursively chmodding the checkout makes
+# tracked files dirty and can strip executable bits from deployment scripts.
+chown root:"$service_user" "$application_directory"
+chmod 0750 "$application_directory"
 
 install -d -o root -g root -m 0755 "$unit_directory"
 install -o root -g root -m 0644 "$project_root/deploy/engineering-blog.service" "$unit_directory/engineering-blog.service"
