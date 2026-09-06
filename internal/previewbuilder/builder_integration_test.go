@@ -1,12 +1,52 @@
 package previewbuilder
 
 import (
+	stdimage "image"
+	"image/color"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pheymann/engineering-blog/internal/contentgraph"
 )
+
+func TestMarkPortraitImagesMarksOnlyTallerRasterAssets(t *testing.T) {
+	root := t.TempDir()
+	portrait := filepath.Join(root, "portrait.png")
+	landscape := filepath.Join(root, "landscape.png")
+	writePNG(t, portrait, 2, 4)
+	writePNG(t, landscape, 4, 2)
+	page := `<img src="/assets/posts/portrait.png" alt=""><img src="/assets/posts/landscape.png" alt="">`
+
+	marked := markPortraitImages(page, []contentgraph.Asset{
+		{SourcePath: portrait, Filename: "portrait.png"},
+		{SourcePath: landscape, Filename: "landscape.png"},
+	})
+
+	if !strings.Contains(marked, `class="post-image-portrait" src="/assets/posts/portrait.png"`) {
+		t.Fatalf("portrait image was not marked: %s", marked)
+	}
+	if strings.Contains(marked, `class="post-image-portrait" src="/assets/posts/landscape.png"`) {
+		t.Fatalf("landscape image was marked: %s", marked)
+	}
+}
+
+func writePNG(t *testing.T, path string, width, height int) {
+	t.Helper()
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	value := stdimage.NewRGBA(stdimage.Rect(0, 0, width, height))
+	value.Set(0, 0, color.Black)
+	if err := png.Encode(file, value); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestBuildLifecycle(t *testing.T) {
 	root := t.TempDir()

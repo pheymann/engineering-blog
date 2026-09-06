@@ -134,6 +134,7 @@ assert.match(sourceStyles, /--side-margin:/);
 assert.match(sourceStyles, /body\s*\{[^}]*display:\s*flex;[^}]*min-height:\s*100vh;[^}]*flex-direction:\s*column;/s);
 assert.match(sourceStyles, /\.site-content\s*\{[^}]*flex:\s*1;/s);
 assert.match(sourceStyles, /--content-width:\s*700px;/, 'All page content must share the centered 700px width.');
+assert.match(sourceStyles, /@media \(min-width: 42\.001rem\)[\s\S]*\.post figure img\.post-image-portrait\s*\{[^}]*width:\s*50%;/s, 'Portrait post images must use half width above the phone breakpoint.');
 assert.match(sourceStyles, /\.homepage-intro\s*\{[^}]*margin:\s*0 0 var\(--space-4\);/s, 'Homepage introduction must be separated from the post list.');
 assert.match(sourceStyles, /@media \(max-width: 42rem\)/);
 assert.match(sourceStyles, /\.post\s*\{[^}]*max-width:\s*700px;/s, 'Post bodies must be capped at 700px.');

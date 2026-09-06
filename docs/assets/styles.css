@@ -191,6 +191,10 @@ a { color: inherit; }
 .footer-links { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .footer-links a { font-weight: 600; text-underline-offset: 0.18em; }
 
+@media (min-width: 42.001rem) {
+  .post figure img.post-image-portrait { width: 50%; }
+}
+
 @media (max-width: 42rem) {
   :root { --side-margin: 1rem; }
   body { font-size: 1rem; }

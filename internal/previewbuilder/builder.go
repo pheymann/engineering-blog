@@ -6,6 +6,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	stdimage "image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"net/url"
 	"os"
@@ -246,6 +250,7 @@ func populate(stage, static string, posts []*post.Post, graph *contentgraph.Grap
 		if err != nil {
 			return err
 		}
+		html = markPortraitImages(html, graph.Assets)
 		if err := writeFile(filepath.Join(stage, value.Slug, "index.html"), []byte(html)); err != nil {
 			return err
 		}
@@ -270,6 +275,23 @@ func populate(stage, static string, posts []*post.Post, graph *contentgraph.Grap
 		return err
 	}
 	return writeFile(filepath.Join(stage, "sitemap.xml"), []byte(sitemap(posts)))
+}
+
+func markPortraitImages(page string, assets []contentgraph.Asset) string {
+	for _, asset := range assets {
+		file, err := os.Open(asset.SourcePath)
+		if err != nil {
+			continue
+		}
+		config, _, decodeErr := stdimage.DecodeConfig(file)
+		file.Close()
+		if decodeErr != nil || config.Height <= config.Width {
+			continue
+		}
+		source := `/assets/posts/` + url.PathEscape(asset.Filename)
+		page = strings.ReplaceAll(page, `src="`+source+`"`, `class="post-image-portrait" src="`+source+`"`)
+	}
+	return page
 }
 
 func postStates(posts []*post.Post) map[string]postState {
