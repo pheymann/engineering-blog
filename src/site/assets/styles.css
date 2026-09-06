@@ -192,7 +192,7 @@ a { color: inherit; }
 .footer-links a { font-weight: 600; text-underline-offset: 0.18em; }
 
 @media (min-width: 42.001rem) {
-  .post figure img.post-image-portrait { width: 50%; }
+  .post figure img.post-image-portrait { width: 50%; margin-inline: auto; }
 }
 
 @media (max-width: 42rem) {
