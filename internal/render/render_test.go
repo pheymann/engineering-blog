@@ -113,6 +113,10 @@ func TestHomeOrdersPostsAndEscapesThreeSentenceExcerpts(t *testing.T) {
 	if strings.Contains(html, "Latest engineering notes") || strings.Contains(html, `class="section-title"`) {
 		t.Error("Home() retained the removed latest-post heading")
 	}
+	intro := `<p class="homepage-intro">Hi, I am Paul and I am a Staff Engineer and Engineering Manager living in Germany. Talk to me on <a href="https://www.linkedin.com/in/paul-heymann-6b4a53144/">LinkedIn</a> or send me an email at <a href="mailto:contact@paulheymann.de">contact@paulheymann.de</a>.</p>`
+	if !strings.Contains(html, intro) || strings.Index(html, intro) > strings.Index(html, `class="post-list"`) {
+		t.Error("Home() did not render the linked introduction before the post list")
+	}
 	for _, want := range []string{`<meta property="og:type" content="website">`, `href="https://engineering.paulheymann.de/"`, `href="/newer/"`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("Home() output missing %q", want)

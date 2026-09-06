@@ -120,9 +120,12 @@ assert.match(outputIndex, /<link rel="stylesheet" href="\/assets\/styles\.css">/
 assert.match(outputIndex, /src="\/assets\/images\/pauls-engineering-blog\.svg"/);
 assert.equal((outputIndex.match(/class="post-card"/g) ?? []).length, 0, 'Checked-in homepage must not contain mock posts.');
 assert.doesNotMatch(outputIndex, /Latest engineering notes|class="section-title"/, 'Checked-in homepage must not retain the removed latest-post heading.');
+assert.match(outputIndex, /<p class="homepage-intro">Hi, I am Paul and I am a Staff Engineer and Engineering Manager living in Germany\. Talk to me on <a href="https:\/\/www\.linkedin\.com\/in\/paul-heymann-6b4a53144\/">LinkedIn<\/a> or send me an email at <a href="mailto:contact@paulheymann\.de">contact@paulheymann\.de<\/a>\.<\/p>/, 'Checked-in homepage must include the linked introduction.');
+assert.ok(outputIndex.indexOf('class="homepage-intro"') < outputIndex.indexOf('class="post-list"'), 'Homepage introduction must appear before the post list.');
 
 const sourceIndex = await readFile(resolve(sourceDirectory, 'index.html'), 'utf8');
 assert.doesNotMatch(sourceIndex, /Latest engineering notes|class="section-title"/, 'Homepage source must not retain the removed latest-post heading.');
+assert.match(sourceIndex, /href="mailto:contact@paulheymann\.de"/, 'Homepage source email address must be a functional mailto link.');
 
 const sourceStyles = await readFile(resolve(sourceDirectory, 'assets/styles.css'), 'utf8');
 assert.match(sourceStyles, /--color-page:/);
@@ -130,6 +133,7 @@ assert.match(sourceStyles, /--font-display:/);
 assert.match(sourceStyles, /--side-margin:/);
 assert.match(sourceStyles, /body\s*\{[^}]*display:\s*flex;[^}]*min-height:\s*100vh;[^}]*flex-direction:\s*column;/s);
 assert.match(sourceStyles, /\.site-content\s*\{[^}]*flex:\s*1;/s);
+assert.match(sourceStyles, /\.homepage-intro\s*\{[^}]*margin:\s*0 0 var\(--space-4\);/s, 'Homepage introduction must be separated from the post list.');
 assert.match(sourceStyles, /@media \(max-width: 42rem\)/);
 assert.match(sourceStyles, /\.post\s*\{[^}]*max-width:\s*700px;/s, 'Post bodies must be capped at 700px.');
 assert.doesNotMatch(sourceStyles, /\.section-title(?:\s|:|\{)/, 'Homepage heading styles must be removed when unused.');
