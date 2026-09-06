@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1050 145" role="img" aria-labelledby="title description">
+  <title id="title">Paul's Engineering Blog</title>
+  <desc id="description">The word Paul's in six vintage computer rainbow stripes, followed on the same line by Engineering Blog in black.</desc>
+  <defs>
+    <clipPath id="paul-letters">
+      <text x="9" y="111" font-family="Arial Black, Arial, sans-serif" font-size="132" font-weight="900">Paul's</text>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#paul-letters)">
+    <rect width="640" height="19" y="0" fill="#66bb44"/>
+    <rect width="640" height="19" y="19" fill="#f6c344"/>
+    <rect width="640" height="19" y="38" fill="#ed8439"/>
+    <rect width="640" height="19" y="57" fill="#df4c50"/>
+    <rect width="640" height="19" y="76" fill="#9252a1"/>
+    <rect width="640" height="19" y="95" fill="#319cc8"/>
+  </g>
+  <text x="480" y="104" fill="#111111" font-family="Arial, sans-serif" font-size="42" font-weight="700" letter-spacing="1">ENGINEERING BLOG</text>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" role="img" aria-labelledby="title description">
+  <title id="title">Static publishing path</title><desc id="description">Markdown file, static build, and published website connected by arrows.</desc>
+  <rect width="960" height="300" fill="#efefeb"/>
+  <g fill="#f5efdf" stroke="#111111" stroke-width="8"><rect x="40" y="82" width="220" height="136"/><rect x="370" y="82" width="220" height="136"/><rect x="700" y="82" width="220" height="136"/></g>
+  <g fill="#111111" font-family="Arial, sans-serif" font-size="31" font-weight="700" text-anchor="middle"><text x="150" y="139">MARKDOWN</text><text x="150" y="180">FILE</text><text x="480" y="139">STATIC</text><text x="480" y="180">BUILD</text><text x="810" y="139">PUBLISHED</text><text x="810" y="180">SITE</text></g>
+  <g fill="none" stroke="#111111" stroke-width="8"><path d="M280 150h65m-22-25 25 25-25 25M610 150h65m-22-25 25 25-25 25"/></g>
+  <rect x="42" y="60" width="218" height="10" fill="#66bb44"/><rect x="370" y="60" width="220" height="10" fill="#f6c344"/><rect x="700" y="60" width="220" height="10" fill="#319cc8"/>
+</svg>
