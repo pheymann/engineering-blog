@@ -9,8 +9,10 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "serve": "npm run build && node scripts/serve.mjs",
-    "test": "node tests/check.mjs",
+    "test": "node tests/check.mjs && sh tests/install-service-isolated.sh",
     "test:e2e": "sh scripts/test-e2e.sh",
+    "test:publish": "sh scripts/test-publish-e2e.sh",
+    "verify:public": "sh scripts/verify-github-pages.sh",
     "check": "npm run build && npm run test"
   }
 }

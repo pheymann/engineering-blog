@@ -33,13 +33,20 @@ type Post struct {
 // Parse returns a post when Markdown is tagged #blog, #engineering, and
 // #preview. Other Markdown is intentionally ignored and returns (nil, nil).
 func Parse(filePath, markdown string) (*Post, error) {
+	return ParseForDeployment(filePath, markdown, "preview")
+}
+
+// ParseForDeployment returns a post when Markdown has the common blog tags and
+// the requested deployment tag. This keeps preview and production selection
+// identical apart from their explicit final tag.
+func ParseForDeployment(filePath, markdown, deploymentTag string) (*Post, error) {
 	frontMatter, body, err := splitFrontMatter(markdown)
 	if err != nil {
 		return nil, pathError(filePath, err)
 	}
 
 	tags := tagsIn(body)
-	if !isPreviewPost(tags) {
+	if !isDeploymentPost(tags, deploymentTag) {
 		return nil, nil
 	}
 
@@ -184,8 +191,8 @@ func tagsIn(body string) []string {
 	return tags
 }
 
-func isPreviewPost(tags []string) bool {
-	return contains(tags, "blog") && contains(tags, "engineering") && contains(tags, "preview")
+func isDeploymentPost(tags []string, deploymentTag string) bool {
+	return contains(tags, "blog") && contains(tags, "engineering") && contains(tags, deploymentTag)
 }
 
 func firstTextSentences(body string, count int) string {

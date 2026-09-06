@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/pheymann/engineering-blog/internal/config"
+	"github.com/pheymann/engineering-blog/internal/gitpublisher"
 	"github.com/pheymann/engineering-blog/internal/previewbuilder"
 	"github.com/pheymann/engineering-blog/internal/watchservice"
 )
@@ -33,9 +34,10 @@ func run(buildOnce bool) error {
 	context, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	fmt.Printf("vault-preview-service started: vault=%s output=%s server=%s debounce=%s reconciliation=%s\n",
+	fmt.Printf("vault-preview-service started: vault=%s preview=%s production=%s server=%s debounce=%s reconciliation=%s\n",
 		configuration.VaultDirectory,
 		configuration.PreviewOutputDirectory,
+		configuration.ProductionOutputDirectory,
 		configuration.PreviewServerURL,
 		configuration.DebounceInterval,
 		configuration.ReconciliationInterval,
@@ -50,12 +52,34 @@ func run(buildOnce bool) error {
 		StaticDirectory: staticDirectory,
 		OutputDirectory: configuration.PreviewOutputDirectory,
 	}
-	if buildOnce {
-		result, err := previewbuilder.Build(builder)
-		if err != nil {
+	productionBuilder := previewbuilder.Config{
+		VaultDirectory: configuration.VaultDirectory, StaticDirectory: staticDirectory,
+		OutputDirectory: configuration.ProductionOutputDirectory,
+		StatePath:       configuration.ProductionStatePath,
+		DeploymentTag:   "publish", PreserveRemoved: true,
+	}
+	build := func() error {
+		if _, err := previewbuilder.Build(builder); err != nil {
 			return fmt.Errorf("build preview: %w", err)
 		}
-		fmt.Printf("vault-preview-service preview build finished (changed=%t posts=%d)\n", result.Changed, result.Posts)
+		_, err := previewbuilder.Build(productionBuilder)
+		if err != nil {
+			return fmt.Errorf("build production: %w", err)
+		}
+		published, err := gitpublisher.Publish(gitpublisher.Config{RepositoryDirectory: configuration.GitRepositoryDirectory, OutputDirectory: configuration.ProductionOutputDirectory})
+		if err != nil {
+			return fmt.Errorf("publish production output: %w", err)
+		}
+		if published {
+			fmt.Println("vault-preview-service production output published")
+		}
+		return nil
+	}
+	if buildOnce {
+		if err := build(); err != nil {
+			return err
+		}
+		fmt.Println("vault-preview-service preview and production build finished")
 		return nil
 	}
 	if err := watchservice.Run(context, watchservice.Config{
@@ -63,8 +87,7 @@ func run(buildOnce bool) error {
 		DebounceInterval:       configuration.DebounceInterval,
 		ReconciliationInterval: configuration.ReconciliationInterval,
 		Build: func() error {
-			_, err := previewbuilder.Build(builder)
-			return err
+			return build()
 		},
 	}); err != nil {
 		return err

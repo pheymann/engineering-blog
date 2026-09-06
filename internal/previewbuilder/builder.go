@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/pheymann/engineering-blog/internal/contentgraph"
 	"github.com/pheymann/engineering-blog/internal/post"
@@ -33,6 +34,8 @@ type Config struct {
 	StaticDirectory string
 	OutputDirectory string
 	StatePath       string
+	DeploymentTag   string
+	PreserveRemoved bool
 }
 
 // Result describes whether Build committed a new preview.
@@ -51,6 +54,9 @@ type postState struct {
 	Fingerprint string   `json:"fingerprint"`
 	Slug        string   `json:"slug"`
 	Redirects   []string `json:"redirects"`
+	Title       string   `json:"title,omitempty"`
+	Date        string   `json:"date,omitempty"`
+	Excerpt     string   `json:"excerpt,omitempty"`
 }
 
 // Build validates a complete vault snapshot before atomically replacing output.
@@ -60,7 +66,7 @@ func Build(config Config) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	posts, err := loadPosts(config.VaultDirectory)
+	posts, err := loadPosts(config.VaultDirectory, config.DeploymentTag)
 	if err != nil {
 		return Result{}, err
 	}
@@ -94,7 +100,10 @@ func Build(config Config) (Result, error) {
 			return Result{}, fmt.Errorf("stage existing preview: %w", err)
 		}
 	}
-	if err := populate(stage, config.StaticDirectory, posts, graph, previous, !outputIntact); err != nil {
+	if config.PreserveRemoved {
+		posts = mergePreservedPosts(posts, previous)
+	}
+	if err := populate(stage, config.StaticDirectory, posts, graph, previous, !outputIntact, config.PreserveRemoved); err != nil {
 		return Result{}, err
 	}
 	files, err := fileManifest(stage)
@@ -104,7 +113,7 @@ func Build(config Config) (Result, error) {
 	if err := replaceDirectory(stage, config.OutputDirectory); err != nil {
 		return Result{}, err
 	}
-	if err := writeState(config.StatePath, buildState{Fingerprint: fingerprint, Posts: postStates(posts), Files: files}); err != nil {
+	if err := writeState(config.StatePath, buildState{Fingerprint: fingerprint, Posts: postStatesForBuild(posts, previous, config.PreserveRemoved), Files: files}); err != nil {
 		return Result{}, fmt.Errorf("write build state: %w", err)
 	}
 	return Result{Changed: true, Posts: len(posts)}, nil
@@ -132,6 +141,9 @@ func normalizedConfig(config Config) (Config, error) {
 	if config.StatePath == "" {
 		config.StatePath = filepath.Join(filepath.Dir(config.OutputDirectory), stateFilename)
 	}
+	if config.DeploymentTag == "" {
+		config.DeploymentTag = "preview"
+	}
 	statePath, err := filepath.Abs(config.StatePath)
 	if err != nil {
 		return Config{}, err
@@ -146,7 +158,7 @@ func normalizedConfig(config Config) (Config, error) {
 	return config, nil
 }
 
-func loadPosts(root string) ([]*post.Post, error) {
+func loadPosts(root, deploymentTag string) ([]*post.Post, error) {
 	var posts []*post.Post
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
@@ -163,7 +175,7 @@ func loadPosts(root string) ([]*post.Post, error) {
 		if err != nil {
 			return err
 		}
-		parsed, err := post.Parse(filepath.ToSlash(relative), string(content))
+		parsed, err := post.ParseForDeployment(filepath.ToSlash(relative), string(content), deploymentTag)
 		if err != nil {
 			return err
 		}
@@ -179,9 +191,16 @@ func loadPosts(root string) ([]*post.Post, error) {
 	return posts, nil
 }
 
-func populate(stage, static string, posts []*post.Post, graph *contentgraph.Graph, previous buildState, renderAll bool) error {
+func populate(stage, static string, posts []*post.Post, graph *contentgraph.Graph, previous buildState, renderAll, preserveRemoved bool) error {
 	current := postStates(posts)
+	preserved := make(map[string]bool)
+	for _, value := range posts {
+		preserved[value.Slug] = preserveRemoved && value.Path == ""
+	}
 	for _, old := range previous.Posts {
+		if preserved[old.Slug] {
+			continue
+		}
 		if now, found := current[old.Slug]; !found || now.Fingerprint != old.Fingerprint {
 			if err := os.RemoveAll(filepath.Join(stage, old.Slug)); err != nil {
 				return err
@@ -198,8 +217,15 @@ func populate(stage, static string, posts []*post.Post, graph *contentgraph.Grap
 			return fmt.Errorf("copy shared %s: %w", name, err)
 		}
 	}
-	if err := os.RemoveAll(filepath.Join(stage, "assets", "posts")); err != nil {
-		return err
+	if cname := filepath.Join(static, "CNAME"); fileExists(cname) {
+		if err := copyFile(cname, filepath.Join(stage, "CNAME")); err != nil {
+			return fmt.Errorf("copy CNAME: %w", err)
+		}
+	}
+	if !preserveRemoved {
+		if err := os.RemoveAll(filepath.Join(stage, "assets", "posts")); err != nil {
+			return err
+		}
 	}
 	for _, asset := range graph.Assets {
 		if err := copyFile(asset.SourcePath, filepath.Join(stage, "assets", "posts", asset.Filename)); err != nil {
@@ -207,6 +233,9 @@ func populate(stage, static string, posts []*post.Post, graph *contentgraph.Grap
 		}
 	}
 	for _, value := range posts {
+		if preserveRemoved && value.Path == "" {
+			continue
+		}
 		if !renderAll {
 			if old, found := previous.Posts[value.Slug]; found && old.Fingerprint == current[value.Slug].Fingerprint {
 				continue
@@ -246,9 +275,42 @@ func populate(stage, static string, posts []*post.Post, graph *contentgraph.Grap
 func postStates(posts []*post.Post) map[string]postState {
 	states := make(map[string]postState, len(posts))
 	for _, value := range posts {
-		states[value.Slug] = postState{Fingerprint: postFingerprint(value), Slug: value.Slug, Redirects: append([]string(nil), value.Redirects...)}
+		states[value.Slug] = postState{
+			Fingerprint: postFingerprint(value), Slug: value.Slug,
+			Redirects: append([]string(nil), value.Redirects...), Title: value.Title,
+			Date: value.Date.Format("2006-01-02"), Excerpt: value.Excerpt,
+		}
 	}
 	return states
+}
+
+func postStatesForBuild(posts []*post.Post, previous buildState, preserveRemoved bool) map[string]postState {
+	states := postStates(posts)
+	if !preserveRemoved {
+		return states
+	}
+	for _, value := range posts {
+		if value.Path == "" {
+			states[value.Slug] = previous.Posts[value.Slug]
+		}
+	}
+	return states
+}
+
+func mergePreservedPosts(current []*post.Post, previous buildState) []*post.Post {
+	known := postStates(current)
+	for _, old := range previous.Posts {
+		if _, found := known[old.Slug]; found || old.Title == "" {
+			continue
+		}
+		date, err := time.Parse("2006-01-02", old.Date)
+		if err != nil {
+			continue
+		}
+		current = append(current, &post.Post{Title: old.Title, Date: date, Slug: old.Slug, Excerpt: old.Excerpt, Redirects: old.Redirects})
+	}
+	sort.Slice(current, func(first, second int) bool { return current[first].Path < current[second].Path })
+	return current
 }
 
 func postFingerprint(value *post.Post) string {
@@ -388,6 +450,7 @@ func writeState(path string, state buildState) error {
 	return writeFile(path, append(data, '\n'))
 }
 func directoryExists(path string) bool { info, err := os.Stat(path); return err == nil && info.IsDir() }
+func fileExists(path string) bool      { info, err := os.Stat(path); return err == nil && !info.IsDir() }
 func writeFile(path string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err

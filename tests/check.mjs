@@ -10,6 +10,8 @@ const serviceUnit = resolve(projectRoot, 'deploy/engineering-blog.service');
 const previewServiceUnit = resolve(projectRoot, 'deploy/engineering-blog-preview.service');
 const installServiceScript = resolve(projectRoot, 'deploy/install-service.sh');
 const tailscaleSetupScript = resolve(projectRoot, 'deploy/configure-tailscale-serve.sh');
+const githubPagesGuide = resolve(projectRoot, 'deploy/github-pages.md');
+const publicVerificationScript = resolve(projectRoot, 'scripts/verify-github-pages.sh');
 const bannedPatterns = [
   /analytics/i,
   /googletagmanager/i,
@@ -70,6 +72,7 @@ for (const requiredDirective of [
   'User=root',
   'Environment="BLOG_VAULT_DIRECTORY=/root/obsidian-vault/Engineering Blog"',
   'Environment=BLOG_PREVIEW_OUTPUT_DIRECTORY=/var/lib/engineering-blog/site',
+  'Environment=BLOG_PRODUCTION_STATE_PATH=/var/lib/engineering-blog/production-state.json',
   'ExecStartPre=/opt/engineering-blog/bin/vault-preview-service --build-once',
   'ExecStart=/opt/engineering-blog/bin/vault-preview-service',
   'Restart=on-failure',
@@ -87,10 +90,24 @@ for (const requiredCommand of [
   'install -d -o root -g "$service_user" -m 0750 "$application_directory"',
   'chown -R root:"$service_user" "$application_directory"',
   'go build -o bin/vault-preview-service ./cmd/vault-preview-service',
-  'install -o root -g root -m 0644 "$project_root/deploy/engineering-blog.service" /etc/systemd/system/engineering-blog.service',
-  'install -o root -g root -m 0644 "$project_root/deploy/engineering-blog-preview.service" /etc/systemd/system/engineering-blog-preview.service'
+  'install -o root -g root -m 0644 "$project_root/deploy/engineering-blog.service" "$unit_directory/engineering-blog.service"',
+  'install -o root -g root -m 0644 "$project_root/deploy/engineering-blog-preview.service" "$unit_directory/engineering-blog-preview.service"'
 ]) {
   assert.match(installer, new RegExp(requiredCommand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `installer needs ${requiredCommand}.`);
+}
+for (const requiredSafetyCheck of [
+  '"$systemctl_command" stop engineering-blog-preview.service 2>/dev/null || true',
+  'git -C "$application_directory" fetch origin main',
+  'git -C "$application_directory" merge-base --is-ancestor HEAD FETCH_HEAD',
+  'refusing to replace checkout: local commits are not on origin/main',
+  'refusing to replace checkout with uncommitted changes',
+  'refusing to replace non-Git application directory $application_directory',
+  'is_known_legacy_layout',
+  'ENGINEERING_BLOG_APPLICATION_DIRECTORY',
+  'ENGINEERING_BLOG_STATE_DIRECTORY',
+  'restore_publisher_on_failure'
+]) {
+  assert.match(installer, new RegExp(requiredSafetyCheck.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `installer needs ${requiredSafetyCheck}.`);
 }
 
 const tailscaleSetup = await readFile(tailscaleSetupScript, 'utf8');
@@ -129,6 +146,11 @@ await access(resolve(sourceDirectory, 'assets/images/pauls-engineering-blog.svg'
 await access(resolve(sourceDirectory, 'assets/images/static-publishing-path.svg'));
 await access(resolve(sourceDirectory, 'robots.txt'));
 await access(resolve(sourceDirectory, 'sitemap.xml'));
+
+const sourceCname = await readFile(resolve(sourceDirectory, 'CNAME'), 'utf8');
+const outputCname = await readFile(resolve(outputDirectory, 'CNAME'), 'utf8');
+assert.equal(sourceCname, 'engineering.paulheymann.de\n', 'The Pages custom-domain source must be exact.');
+assert.equal(outputCname, sourceCname, 'The built site must retain the Pages custom-domain file.');
 
 const logo = await readFile(resolve(sourceDirectory, 'assets/images/pauls-engineering-blog.svg'), 'utf8');
 assert.match(logo, /<title id="title">Paul's Engineering Blog<\/title>/, 'Logo needs an accessible title.');
@@ -176,17 +198,20 @@ assert.match(privacy, /<meta property="og:description" content="[^"]*Datenschutz
 assert.doesNotMatch(privacy, /This page is a placeholder\./, 'The privacy notice must not retain its placeholder text.');
 assert.match(privacy, /Paul Heymann<br>Hilleborchstraße 3<br>38855 Wernigerode/, 'The privacy notice must identify the controller and postal address.');
 assert.match(privacy, /mailto:contact@paulheymann\.de/, 'The privacy notice must provide a contact email address.');
-assert.match(privacy, /Cloudflare/, 'The privacy notice must name its delivery provider.');
+assert.match(privacy, /GitHub Pages/, 'The privacy notice must name its delivery provider.');
+assert.doesNotMatch(privacy, /Cloudflare/, 'The privacy notice must not name the retired delivery provider.');
 assert.match(privacy, /IP-Adresse/, 'The privacy notice must explain necessary request data.');
 assert.match(privacy, /Art\. 6 Abs\. 1 lit\. f DSGVO/, 'The privacy notice must state its legal basis.');
-assert.match(privacy, /https:\/\/www\.cloudflare\.com\/policies\/privacy\//, 'The privacy notice must link Cloudflare’s privacy policy.');
-assert.match(privacy, /https:\/\/www\.cloudflare\.com\/cloudflare-customer-dpa\//, 'The privacy notice must link Cloudflare’s DPA.');
-assert.match(privacy, /Standardvertragsklauseln/, 'The privacy notice must describe transfer safeguards without fixing a configuration.');
-assert.match(privacy, /EU-US Data Privacy Framework/, 'The privacy notice must qualify the applicable transfer mechanism.');
-assert.match(privacy, /Art und Sensibilität der Daten/, 'The privacy notice must give retention criteria rather than invent a fixed period.');
+assert.match(privacy, /https:\/\/docs\.github\.com\/site-policy\/privacy-policies\/github-privacy-statement/, 'The privacy notice must link GitHub’s privacy statement.');
 assert.match(privacy, /keine Cookies, keine Reichweitenmessung, keine Werbung, kein Tracking, keine Formulare, keine Benutzerkonten und kein clientseitiges JavaScript/, 'The privacy notice must accurately state this site’s additional data practices.');
 assert.match(privacy, /Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit sowie Widerspruch/, 'The privacy notice must explain data-subject rights.');
 assert.match(privacy, /Datenschutz-Aufsichtsbehörde/, 'The privacy notice must explain the right to complain.');
+
+const pagesGuide = await readFile(githubPagesGuide, 'utf8');
+assert.match(pagesGuide, /failed-push recovery/i, 'The Pages guide must cover failed-push recovery.');
+assert.match(pagesGuide, /credential\s+rotation/i, 'The Pages guide must cover credential rotation.');
+const publicVerification = await readFile(publicVerificationScript, 'utf8');
+assert.match(publicVerification, /BLOG_PUBLIC_URL/, 'Public verification must be opt-in.');
 
 for (const filePath of [...sourceFiles, ...outputFiles]) {
   if (!textExtensions.has(filePath.slice(filePath.lastIndexOf('.')))) {

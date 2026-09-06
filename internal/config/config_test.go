@@ -12,19 +12,24 @@ func TestLoadFromAcceptsValidConfiguration(t *testing.T) {
 	vault := t.TempDir()
 	outputParent := t.TempDir()
 	output := filepath.Join(outputParent, "site")
+	productionOutput := filepath.Join(outputParent, "docs")
+	productionState := filepath.Join(t.TempDir(), "production-state.json")
 	values := map[string]string{
-		vaultDirectoryEnv:         vault,
-		previewOutputDirectoryEnv: output,
-		previewServerURLEnv:       "http://127.0.0.1:8081",
-		debounceIntervalEnv:       "250ms",
-		reconciliationIntervalEnv: "2m",
+		vaultDirectoryEnv:            vault,
+		previewOutputDirectoryEnv:    output,
+		productionOutputDirectoryEnv: productionOutput,
+		productionStatePathEnv:       productionState,
+		gitRepositoryDirectoryEnv:    outputParent,
+		previewServerURLEnv:          "http://127.0.0.1:8081",
+		debounceIntervalEnv:          "250ms",
+		reconciliationIntervalEnv:    "2m",
 	}
 
 	configuration, err := LoadFrom(valuesLookup(values))
 	if err != nil {
 		t.Fatalf("LoadFrom() error = %v", err)
 	}
-	if configuration.VaultDirectory != vault || configuration.PreviewOutputDirectory != output {
+	if configuration.VaultDirectory != vault || configuration.PreviewOutputDirectory != output || configuration.ProductionOutputDirectory != productionOutput || configuration.ProductionStatePath != productionState {
 		t.Fatalf("unexpected paths: %#v", configuration)
 	}
 	if configuration.PreviewServerURL.String() != "http://127.0.0.1:8081" {

@@ -94,6 +94,77 @@ func TestBuildLifecycle(t *testing.T) {
 	}
 }
 
+func TestProductionBuildPublishesOnlyPublishTagsAndFreezesRemovedTag(t *testing.T) {
+	root := t.TempDir()
+	vault := filepath.Join(root, "vault")
+	static := filepath.Join(root, "static")
+	output := filepath.Join(root, "docs")
+	state := filepath.Join(root, "production-state.json")
+	writeSharedSite(t, static)
+	write(t, filepath.Join(static, "CNAME"), "engineering.paulheymann.de\n")
+	published := filepath.Join(vault, "Published.md")
+	write(t, published, postSource("Published", "2026-09-05", "", "#blog #engineering #publish\nPublished body"))
+	write(t, filepath.Join(vault, "Preview only.md"), postSource("Preview only", "2026-09-06", "", "#blog #engineering #preview\nPrivate body"))
+	config := Config{
+		VaultDirectory: vault, StaticDirectory: static, OutputDirectory: output,
+		StatePath: state, DeploymentTag: "publish", PreserveRemoved: true,
+	}
+
+	result, err := Build(config)
+	if err != nil || !result.Changed || result.Posts != 1 {
+		t.Fatalf("initial production Build() = %#v, %v", result, err)
+	}
+	for _, path := range []string{"index.html", "published/index.html", "CNAME", "assets/styles.css"} {
+		if _, err := os.Stat(filepath.Join(output, path)); err != nil {
+			t.Errorf("production output missing %s: %v", path, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(output, "preview-only", "index.html")); !os.IsNotExist(err) {
+		t.Fatalf("preview-only post entered production: %v", err)
+	}
+
+	pageBefore := read(t, filepath.Join(output, "published", "index.html"))
+	homeBefore := read(t, filepath.Join(output, "index.html"))
+	write(t, published, postSource("Published", "2026-09-05", "", "#blog #engineering\nUnpublished edit"))
+	result, err = Build(config)
+	if err != nil {
+		t.Fatalf("freeze Build() error = %v", err)
+	}
+	if !result.Changed {
+		t.Fatal("removing publish should record the new production selection")
+	}
+	if read(t, filepath.Join(output, "published", "index.html")) != pageBefore || read(t, filepath.Join(output, "index.html")) != homeBefore {
+		t.Fatal("removing publish changed the last published output")
+	}
+
+	outputInfo, err := os.Stat(filepath.Join(output, "published", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stateBefore := read(t, state)
+	time.Sleep(10 * time.Millisecond)
+	write(t, published, postSource("Published", "2026-09-05", "", "#blog #engineering\nAnother unpublished edit"))
+	result, err = Build(config)
+	if err != nil || result.Changed {
+		t.Fatalf("unpublished edit Build() = %#v, %v, want no change", result, err)
+	}
+	outputAfter, err := os.Stat(filepath.Join(output, "published", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !outputAfter.ModTime().Equal(outputInfo.ModTime()) || read(t, state) != stateBefore {
+		t.Fatal("unpublished edit rewrote production output or state")
+	}
+
+	write(t, filepath.Join(vault, "Broken.md"), "#blog #engineering #publish\nBroken")
+	if _, err := Build(config); err == nil || !strings.Contains(err.Error(), "date property is required") {
+		t.Fatalf("invalid production Build() error = %v", err)
+	}
+	if read(t, filepath.Join(output, "published", "index.html")) != pageBefore {
+		t.Fatal("failed production build partially replaced output")
+	}
+}
+
 func TestBuildDetectsRedirectOnlyChanges(t *testing.T) {
 	root := t.TempDir()
 	vault := filepath.Join(root, "vault")

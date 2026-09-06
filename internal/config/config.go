@@ -13,6 +13,9 @@ import (
 const (
 	vaultDirectoryEnv             = "BLOG_VAULT_DIRECTORY"
 	previewOutputDirectoryEnv     = "BLOG_PREVIEW_OUTPUT_DIRECTORY"
+	productionOutputDirectoryEnv  = "BLOG_PRODUCTION_OUTPUT_DIRECTORY"
+	productionStatePathEnv        = "BLOG_PRODUCTION_STATE_PATH"
+	gitRepositoryDirectoryEnv     = "BLOG_GIT_REPOSITORY_DIRECTORY"
 	previewServerURLEnv           = "BLOG_PREVIEW_SERVER_URL"
 	debounceIntervalEnv           = "BLOG_DEBOUNCE_INTERVAL"
 	reconciliationIntervalEnv     = "BLOG_RECONCILIATION_INTERVAL"
@@ -24,11 +27,14 @@ const (
 // Config contains the filesystem and timing settings used by the preview pipeline.
 // The service owns neither the HTTP server nor the generated output format.
 type Config struct {
-	VaultDirectory         string
-	PreviewOutputDirectory string
-	PreviewServerURL       *url.URL
-	DebounceInterval       time.Duration
-	ReconciliationInterval time.Duration
+	VaultDirectory            string
+	PreviewOutputDirectory    string
+	ProductionOutputDirectory string
+	ProductionStatePath       string
+	GitRepositoryDirectory    string
+	PreviewServerURL          *url.URL
+	DebounceInterval          time.Duration
+	ReconciliationInterval    time.Duration
 }
 
 // Load reads configuration from the process environment and validates it before
@@ -52,6 +58,27 @@ func LoadFrom(lookup func(string) (string, bool)) (Config, error) {
 	if pathsOverlap(vaultDirectory, previewOutputDirectory) {
 		return Config{}, fmt.Errorf("%s (%q) must not be inside %s (%q), and %s must not be inside it", previewOutputDirectoryEnv, previewOutputDirectory, vaultDirectoryEnv, vaultDirectory, vaultDirectoryEnv)
 	}
+	productionOutputDirectory, err := pathOrDefault(lookup, productionOutputDirectoryEnv, "docs")
+	if err != nil {
+		return Config{}, err
+	}
+	if pathsOverlap(vaultDirectory, productionOutputDirectory) || pathsOverlap(previewOutputDirectory, productionOutputDirectory) {
+		return Config{}, fmt.Errorf("%s (%q) must not overlap the vault or preview output", productionOutputDirectoryEnv, productionOutputDirectory)
+	}
+	productionStatePath, err := pathOrDefault(lookup, productionStatePathEnv, filepath.Join(filepath.Dir(productionOutputDirectory), ".engineering-blog-production-state.json"))
+	if err != nil {
+		return Config{}, err
+	}
+	if pathsOverlap(vaultDirectory, productionStatePath) || pathsOverlap(previewOutputDirectory, productionStatePath) || pathsOverlap(productionOutputDirectory, productionStatePath) {
+		return Config{}, fmt.Errorf("%s (%q) must not overlap vault or output directories", productionStatePathEnv, productionStatePath)
+	}
+	gitRepositoryDirectory, err := pathOrDefault(lookup, gitRepositoryDirectoryEnv, ".")
+	if err != nil {
+		return Config{}, err
+	}
+	if !pathContains(gitRepositoryDirectory, productionOutputDirectory) {
+		return Config{}, fmt.Errorf("%s (%q) must contain %s (%q)", gitRepositoryDirectoryEnv, gitRepositoryDirectory, productionOutputDirectoryEnv, productionOutputDirectory)
+	}
 
 	previewServerURL, err := parsePreviewServerURL(valueOrDefault(lookup, previewServerURLEnv, defaultPreviewServerURL))
 	if err != nil {
@@ -68,12 +95,25 @@ func LoadFrom(lookup func(string) (string, bool)) (Config, error) {
 	}
 
 	return Config{
-		VaultDirectory:         vaultDirectory,
-		PreviewOutputDirectory: previewOutputDirectory,
-		PreviewServerURL:       previewServerURL,
-		DebounceInterval:       debounceInterval,
-		ReconciliationInterval: reconciliationInterval,
+		VaultDirectory:            vaultDirectory,
+		PreviewOutputDirectory:    previewOutputDirectory,
+		ProductionOutputDirectory: productionOutputDirectory,
+		ProductionStatePath:       productionStatePath,
+		GitRepositoryDirectory:    gitRepositoryDirectory,
+		PreviewServerURL:          previewServerURL,
+		DebounceInterval:          debounceInterval,
+		ReconciliationInterval:    reconciliationInterval,
 	}, nil
+}
+
+func pathContains(parent, child string) bool {
+	relative, err := filepath.Rel(parent, child)
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
+func pathOrDefault(lookup func(string) (string, bool), name, fallback string) (string, error) {
+	value := valueOrDefault(lookup, name, fallback)
+	return requiredPath(func(string) (string, bool) { return value, true }, name)
 }
 
 func requiredDirectory(lookup func(string) (string, bool), name string) (string, error) {

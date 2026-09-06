@@ -1,6 +1,7 @@
 # Generated site output and local tool state
 /dist/
-/.wrangler/
+/.engineering-blog-production-state.json
+/bin/
 
 # Dependencies and logs
 /node_modules/
@@ -9,7 +10,7 @@ npm-debug.log*
 /e2e-results/
 __pycache__/
 
-# Local Cloudflare credentials and environment files
+# Local credentials and environment files
 .dev.vars
 .dev.vars.*
 .env

@@ -2,11 +2,11 @@
 
 This repository is the MVP for Paul's Engineering Blog. It is a static, privacy-focused preview of `engineering.paulheymann.de`: plain HTML and CSS, local fonts and images, no JavaScript, cookies, analytics, or external runtime downloads.
 
-The repository contains the responsive site design, local vault-to-HTML preview pipeline, private Tailscale HTTPS preview, and automated checks. It does **not** publish to Cloudflare; that remains outside this milestone.
+The repository contains the responsive site design, local vault-to-HTML preview pipeline, private Tailscale HTTPS preview, GitHub Pages production publishing, and automated checks.
 
-The Go vault-preview service parses and validates tagged Markdown, builds the local preview, and watches the vault. The Node process remains a small loopback-only static-file server for the generated output.
+The Go vault-preview service parses and validates tagged Markdown, builds the local preview and production `/docs` output, publishes changed `/docs` commits, and watches the vault. The Node process remains a small loopback-only static-file server for the generated output.
 
-The site includes canonical URLs, Open Graph title/type/URL/description metadata, `robots.txt`, and `sitemap.xml`. The `Impressum` and `Datenschutzerklärung` pages are placeholders until legally reviewed text is supplied.
+The site includes canonical URLs, Open Graph title/type/URL/description metadata, `robots.txt`, and `sitemap.xml`. The `Impressum` and `Datenschutzerklärung` pages contain the current supplied text and should receive legal review before relying on them as legal advice.
 
 ## Prerequisites and setup
 
@@ -59,15 +59,17 @@ src/site/robots.txt               Crawler policy
 src/site/sitemap.xml              Public canonical URL list
 dist/                             Generated static site (ignored)
 scripts/                          Build and local-server programs
-deploy/                           systemd, Tailscale, and Cloudflare templates
+deploy/                           systemd, Tailscale, and GitHub Pages documentation
 tests/                            Static checks and Robot Framework regression suite
 ```
 
-No mock posts are checked into the site. The Go parser recognizes the preview-post metadata format; generated pages, redirects, and local preview output are handled automatically. Keep all assets local and preserve the footer links to both legal pages. There is no post-publishing command yet. `deploy/wrangler.example.jsonc` is only an unconfigured Workers Static Assets template; it is not a deploy command or a Cloudflare configuration to copy into production.
+No mock posts are checked into the site. The Go parser recognizes the preview-post metadata format; generated pages, redirects, and local preview output are handled automatically. Keep all assets local and preserve the footer links to both legal pages. GitHub Pages owner setup and live verification are documented in [`deploy/github-pages.md`](deploy/github-pages.md).
 
 ## Local systemd service
 
-The deployment uses two units: `engineering-blog-preview.service` transforms and watches `/root/obsidian-vault/Engineering Blog` as root because the vault is private, while `engineering-blog.service` serves `/var/lib/engineering-blog/site` as the dedicated unprivileged `engineering-blog` account on `127.0.0.1:8080`. The installer compiles the versioned Go binary under `/opt/engineering-blog`, installs both units, and makes only the generated state directory writable at runtime.
+The deployment uses two units: `engineering-blog-preview.service` transforms and watches `/root/obsidian-vault/Engineering Blog` as root because the vault is private, while `engineering-blog.service` serves `/var/lib/engineering-blog/site` as the dedicated unprivileged `engineering-blog` account on `127.0.0.1:8080`. The installer creates a Git checkout under `/opt/engineering-blog` so the transformer can commit only changed `docs/` output; its production build state is durable in `/var/lib/engineering-blog/production-state.json`, never in the replaceable checkout. Before replacement, the installer stops the publisher and refuses to proceed if the existing checkout has unpushed commits or uncommitted changes.
+
+Before enabling publishing, install a root-only Git configuration and SSH credential outside the checkout. Use [`deploy/git-publisher.env.example`](deploy/git-publisher.env.example) as the environment-file shape, configure `user.name` and `user.email` in its referenced Git config, and point its SSH config at a root-only deploy key with write access to `pheymann/engineering-blog`. Do not put a token or private key in the repository, unit file, or journal-visible command line.
 
 Install or update the versioned unit, then enable and start it:
 
@@ -148,6 +150,8 @@ To run one reconciliation without starting the watcher, use `go run ./cmd/vault-
 
 Optional settings are `BLOG_DEBOUNCE_INTERVAL` (default `500ms`), `BLOG_RECONCILIATION_INTERVAL` (default `5m`), and `BLOG_PREVIEW_SERVER_URL` (default `http://127.0.0.1:8080`). Durations use Go's duration syntax. Send `SIGTERM` or press `Ctrl-C` to stop the service.
 
+`BLOG_PRODUCTION_OUTPUT_DIRECTORY` defaults to `docs` and `BLOG_GIT_REPOSITORY_DIRECTORY` defaults to the current working directory. On a successful changed production build, the service stages only `docs`, creates the deterministic `Publish generated site` commit, and pushes `HEAD` to `origin/main`. An unchanged `docs` tree performs no new commit or push; it only retries a previous docs-only publishing commit that is not yet on `origin/main`. Git identity, dirty-index/commit, authentication, and push errors are reported to the service journal; a failed push leaves its local `docs`-only commit available for that later retry.
+
 Run its focused suites with:
 
 ```sh
@@ -171,7 +175,23 @@ e2e-results/log.html
 e2e-results/output.xml
 ```
 
-To target another authorized preview host or change browser settings, pass `TARGET_URL`, `BROWSER`, `BROWSER_EXECUTABLE`, or `HEADLESS` in the environment when invoking the same test command. `DESKTOP_WIDTH`, `DESKTOP_HEIGHT`, `MOBILE_WIDTH`, and `MOBILE_HEIGHT` are also configurable. The suite does not create vault content: before and after every test it checks that its reserved fixture path is absent.
+To target another authorized preview host or change browser settings, pass `TARGET_URL`, `BROWSER`, `BROWSER_EXECUTABLE`, or `HEADLESS` in the environment when invoking the same test command. `DESKTOP_WIDTH`, `DESKTOP_HEIGHT`, `MOBILE_WIDTH`, and `MOBILE_HEIGHT` are also configurable. Pipeline cases create and remove their reserved fixture directory in the live preview vault; the isolated publication suite below never accesses that vault.
+
+Run the production publication workflow separately:
+
+```sh
+npm run test:publish
+```
+
+This Robot test runs a Go integration test with a temporary vault, cloned checkout, and local bare Git remote. It covers initial publication, update, no-op reconciliation, and the `#publish` removal freeze without reading the real vault or contacting `origin`.
+
+After the owner enables Pages and DNS, run the deliberate live probe:
+
+```sh
+BLOG_PUBLIC_URL=https://engineering.paulheymann.de npm run verify:public
+```
+
+It checks HTTPS, HTTP-to-HTTPS redirect behavior, homepage metadata, styles, `robots.txt`, and `sitemap.xml`; it never publishes content. See [`deploy/github-pages.md`](deploy/github-pages.md) for the required owner setup, recovery, and credential-rotation procedures.
 
 ## MVP troubleshooting checklist
 
@@ -180,5 +200,6 @@ To target another authorized preview host or change browser settings, pass `TARG
 - The HTTPS preview does not respond: verify that Tailscale is connected, the local service is active, and `tailscale serve status` shows the tailnet-only `:8443` proxy route.
 - Robot tests cannot connect: ensure the test machine is authorized in the tailnet and that `TARGET_URL` matches the Serve URL; inspect `e2e-results/log.html` after a run.
 - A browser test cannot start: check Python's `venv` support and `/usr/bin/chromium`, then rerun `npm run test:e2e` to install or initialize the local test tooling.
+- A production push fails: inspect `journalctl -u engineering-blog-preview.service -n 100 --no-pager`; do not amend, reset, or force-push the retained publication commit. Follow the failed-push recovery steps in [`deploy/github-pages.md`](deploy/github-pages.md).
 
-For the full intended product direction and the MVP boundaries, see the [specification](../obsidian-vault/Agent%20Memories/Engineering%20Blog%20Website/Spec.md). The implementation in this repository is authoritative for currently supported commands.
+For the full intended product direction and the MVP boundaries, see the [specification](../obsidian-vault/Agent%20Memories/Engineering%20Blog%20Website/Project%20-%20Build%20a%20blog%20website.md). The implementation in this repository is authoritative for currently supported commands.
