@@ -24,7 +24,10 @@ import (
 	"github.com/pheymann/engineering-blog/internal/render"
 )
 
-const stateFilename = ".engineering-blog-preview-state.json"
+const (
+	stateFilename = ".engineering-blog-preview-state.json"
+	renderVersion = 1
+)
 
 var (
 	wikilink      = regexp.MustCompile(`\[\[([^\]]+)\]\]`)
@@ -49,9 +52,10 @@ type Result struct {
 }
 
 type buildState struct {
-	Fingerprint string               `json:"fingerprint"`
-	Posts       map[string]postState `json:"posts"`
-	Files       map[string]string    `json:"files"`
+	Fingerprint   string               `json:"fingerprint"`
+	RenderVersion int                  `json:"renderVersion"`
+	Posts         map[string]postState `json:"posts"`
+	Files         map[string]string    `json:"files"`
 }
 
 type postState struct {
@@ -107,7 +111,7 @@ func Build(config Config) (Result, error) {
 	if config.PreserveRemoved {
 		posts = mergePreservedPosts(posts, previous)
 	}
-	if err := populate(stage, config.StaticDirectory, posts, graph, previous, !outputIntact, config.PreserveRemoved); err != nil {
+	if err := populate(stage, config.StaticDirectory, posts, graph, previous, previous.RenderVersion != renderVersion || !outputIntact, config.PreserveRemoved); err != nil {
 		return Result{}, err
 	}
 	files, err := fileManifest(stage)
@@ -117,7 +121,7 @@ func Build(config Config) (Result, error) {
 	if err := replaceDirectory(stage, config.OutputDirectory); err != nil {
 		return Result{}, err
 	}
-	if err := writeState(config.StatePath, buildState{Fingerprint: fingerprint, Posts: postStatesForBuild(posts, previous, config.PreserveRemoved), Files: files}); err != nil {
+	if err := writeState(config.StatePath, buildState{Fingerprint: fingerprint, RenderVersion: renderVersion, Posts: postStatesForBuild(posts, previous, config.PreserveRemoved), Files: files}); err != nil {
 		return Result{}, fmt.Errorf("write build state: %w", err)
 	}
 	return Result{Changed: true, Posts: len(posts)}, nil
