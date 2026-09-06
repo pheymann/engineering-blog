@@ -342,6 +342,61 @@ func TestBuildRendersObsidianImageEmbedWithSpaces(t *testing.T) {
 	}
 }
 
+func TestBuildRendersMermaidBlocksToDeterministicSVG(t *testing.T) {
+	root := t.TempDir()
+	vault := filepath.Join(root, "vault")
+	static := filepath.Join(root, "static")
+	output := filepath.Join(root, "preview")
+	writeSharedSite(t, static)
+	command := filepath.Join(root, "fake-mmdc.sh")
+	write(t, command, `#!/bin/sh
+set -eu
+input=
+output=
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -i) input=$2; shift 2 ;;
+    -o) output=$2; shift 2 ;;
+    *) shift ;;
+  esac
+done
+if grep -q INVALID "$input"; then
+  echo "syntax error" >&2
+  exit 2
+fi
+printf '<svg xmlns="http://www.w3.org/2000/svg"><text>diagram</text></svg>\n' > "$output"
+`)
+	if err := os.Chmod(command, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	puppeteerConfig := filepath.Join(root, "puppeteer.json")
+	write(t, puppeteerConfig, "{}\n")
+	postPath := filepath.Join(vault, "Diagram post.md")
+	write(t, postPath, postSource("Diagram post", "2026-09-05", "", "#blog #engineering #preview\n\n```mermaid\ngraph TD\n  A --> B\n```"))
+	config := Config{VaultDirectory: vault, StaticDirectory: static, OutputDirectory: output, MermaidCommand: command, MermaidConfig: puppeteerConfig}
+
+	if _, err := Build(config); err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	page := read(t, filepath.Join(output, "diagram-post", "index.html"))
+	if !strings.Contains(page, `src="/assets/diagrams/diagram-post-`) || strings.Contains(page, `<code class="language-mermaid">`) {
+		t.Fatalf("generated post did not reference a Mermaid SVG: %s", page)
+	}
+	diagrams, err := filepath.Glob(filepath.Join(output, "assets", "diagrams", "diagram-post-*.svg"))
+	if err != nil || len(diagrams) != 1 || !strings.Contains(read(t, diagrams[0]), "<svg") {
+		t.Fatalf("generated diagrams = %v, %v", diagrams, err)
+	}
+
+	previous := page
+	write(t, postPath, postSource("Diagram post", "2026-09-05", "", "#blog #engineering #preview\n\n```mermaid\nINVALID\n```"))
+	if _, err := Build(config); err == nil || !strings.Contains(err.Error(), "syntax error") {
+		t.Fatalf("invalid Mermaid Build() error = %v", err)
+	}
+	if got := read(t, filepath.Join(output, "diagram-post", "index.html")); got != previous {
+		t.Fatal("failed Mermaid build replaced the last valid preview")
+	}
+}
+
 func writeSharedSite(t *testing.T, root string) {
 	t.Helper()
 	write(t, filepath.Join(root, "assets", "styles.css"), "body{}")

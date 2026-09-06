@@ -80,6 +80,7 @@ fi
 rm -rf "$application_directory"
 git clone --no-local "$project_root" "$application_directory"
 git -C "$application_directory" remote set-url origin "$(git -C "$project_root" remote get-url origin)"
+(cd "$application_directory" && PUPPETEER_SKIP_DOWNLOAD=true npm ci)
 mkdir -p "$application_directory/bin"
 (cd "$application_directory" && go build -o bin/vault-preview-service ./cmd/vault-preview-service)
 # Keep modes recorded by Git intact; recursively chmodding the checkout makes

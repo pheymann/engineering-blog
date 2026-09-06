@@ -12,7 +12,7 @@ The site includes canonical URLs, Open Graph title/type/URL/description metadata
 
 - Node.js `20.19.2` (the version in `.nvmrc`)
 - npm 9 or newer
-- For browser regression tests: Python 3 with `venv`, and Chromium at `/usr/bin/chromium`
+- Chromium at `/usr/bin/chromium` for build-time Mermaid diagram rendering and browser regression tests
 - For the private preview: Tailscale installed, authenticated, and able to run `tailscale serve`
 - For system service administration: an account with `sudo`
 
@@ -64,6 +64,8 @@ tests/                            Static checks and Robot Framework regression s
 ```
 
 No mock posts are checked into the site. The Go parser recognizes the preview-post metadata format; generated pages, redirects, and local preview output are handled automatically. Keep all assets local and preserve the footer links to both legal pages. GitHub Pages owner setup and live verification are documented in [`deploy/github-pages.md`](deploy/github-pages.md).
+
+Fenced `mermaid` code blocks are rendered to deterministic SVG assets during preview and production builds. The pinned local Mermaid CLI uses `/usr/bin/chromium`; readers receive only static HTML and SVG, with no client-side Mermaid JavaScript or external runtime download. Invalid or unterminated Mermaid blocks fail the build without replacing the last valid site.
 
 ## Local systemd service
 

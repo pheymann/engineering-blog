@@ -143,7 +143,11 @@ func TestServicePublishWorkflowUsesOnlyTemporaryVaultAndRemote(t *testing.T) {
 	run()
 	firstCommit := gitHead(t, repository)
 	assertRemotePage(t, repository, "First published version.")
-	for _, file := range strings.Fields(gitOutput(t, repository, "show", "--format=", "--name-only", "HEAD")) {
+	for _, file := range strings.Split(gitOutput(t, repository, "show", "--format=", "--name-only", "HEAD"), "\n") {
+		file = strings.TrimSpace(file)
+		if file == "" {
+			continue
+		}
 		if !strings.HasPrefix(file, "docs/") {
 			t.Fatalf("publication included non-docs file %q", file)
 		}

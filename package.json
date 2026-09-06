@@ -14,5 +14,9 @@
     "test:publish": "sh scripts/test-publish-e2e.sh",
     "verify:public": "sh scripts/verify-github-pages.sh",
     "check": "npm run build && npm run test"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "11.17.0",
+    "puppeteer": "24.43.1"
   }
 }

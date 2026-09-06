@@ -26,7 +26,7 @@ import (
 
 const (
 	stateFilename = ".engineering-blog-preview-state.json"
-	renderVersion = 1
+	renderVersion = 2
 )
 
 var (
@@ -43,6 +43,8 @@ type Config struct {
 	StatePath       string
 	DeploymentTag   string
 	PreserveRemoved bool
+	MermaidCommand  string
+	MermaidConfig   string
 }
 
 // Result describes whether Build committed a new preview.
@@ -111,7 +113,7 @@ func Build(config Config) (Result, error) {
 	if config.PreserveRemoved {
 		posts = mergePreservedPosts(posts, previous)
 	}
-	if err := populate(stage, config.StaticDirectory, posts, graph, previous, previous.RenderVersion != renderVersion || !outputIntact, config.PreserveRemoved); err != nil {
+	if err := populate(stage, config.StaticDirectory, posts, graph, previous, previous.RenderVersion != renderVersion || !outputIntact, config.PreserveRemoved, config.MermaidCommand, config.MermaidConfig); err != nil {
 		return Result{}, err
 	}
 	files, err := fileManifest(stage)
@@ -157,6 +159,13 @@ func normalizedConfig(config Config) (Config, error) {
 		return Config{}, err
 	}
 	config.StatePath = statePath
+	projectRoot := filepath.Dir(filepath.Dir(config.StaticDirectory))
+	if config.MermaidCommand == "" {
+		config.MermaidCommand = filepath.Join(projectRoot, "node_modules", ".bin", "mmdc")
+	}
+	if config.MermaidConfig == "" {
+		config.MermaidConfig = filepath.Join(projectRoot, "deploy", "mermaid-puppeteer-config.json")
+	}
 	for _, directory := range []string{config.VaultDirectory, config.StaticDirectory} {
 		info, err := os.Stat(directory)
 		if err != nil || !info.IsDir() {
@@ -199,7 +208,7 @@ func loadPosts(root, deploymentTag string) ([]*post.Post, error) {
 	return posts, nil
 }
 
-func populate(stage, static string, posts []*post.Post, graph *contentgraph.Graph, previous buildState, renderAll, preserveRemoved bool) error {
+func populate(stage, static string, posts []*post.Post, graph *contentgraph.Graph, previous buildState, renderAll, preserveRemoved bool, mermaidCommand, mermaidConfig string) error {
 	current := postStates(posts)
 	preserved := make(map[string]bool)
 	for _, value := range posts {
@@ -234,6 +243,9 @@ func populate(stage, static string, posts []*post.Post, graph *contentgraph.Grap
 		if err := os.RemoveAll(filepath.Join(stage, "assets", "posts")); err != nil {
 			return err
 		}
+		if err := os.RemoveAll(filepath.Join(stage, "assets", "diagrams")); err != nil {
+			return err
+		}
 	}
 	for _, asset := range graph.Assets {
 		if err := copyFile(asset.SourcePath, filepath.Join(stage, "assets", "posts", asset.Filename)); err != nil {
@@ -244,12 +256,17 @@ func populate(stage, static string, posts []*post.Post, graph *contentgraph.Grap
 		if preserveRemoved && value.Path == "" {
 			continue
 		}
+		rendered := cloneForRender(value, graph.Links[value.Path])
+		body, err := renderMermaidDiagrams(rendered.Body, rendered.Path, rendered.Slug, filepath.Join(stage, "assets", "diagrams"), mermaidCommand, mermaidConfig)
+		if err != nil {
+			return err
+		}
+		rendered.Body = body
 		if !renderAll {
 			if old, found := previous.Posts[value.Slug]; found && old.Fingerprint == current[value.Slug].Fingerprint {
 				continue
 			}
 		}
-		rendered := cloneForRender(value, graph.Links[value.Path])
 		html, err := render.Post(rendered)
 		if err != nil {
 			return err

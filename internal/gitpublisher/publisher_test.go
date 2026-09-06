@@ -99,6 +99,24 @@ func TestPublishReportsPushFailureAndRetainsCommit(t *testing.T) {
 	}
 }
 
+func TestPublishRetriesDocsOnlyCommitContainingFilenameWithSpaces(t *testing.T) {
+	repository, remote := newRepository(t)
+	missingRemote := filepath.Join(t.TempDir(), "missing.git")
+	git(t, repository, "remote", "set-url", "origin", missingRemote)
+	write(t, filepath.Join(repository, "docs", "assets", "diagram 1.svg"), "diagram")
+	if published, err := Publish(Config{RepositoryDirectory: repository, OutputDirectory: filepath.Join(repository, "docs")}); !published || err == nil {
+		t.Fatalf("failed Publish() = %t, %v", published, err)
+	}
+	failedCommit := git(t, repository, "rev-parse", "HEAD")
+	git(t, repository, "remote", "set-url", "origin", remote)
+	if published, err := Publish(Config{RepositoryDirectory: repository, OutputDirectory: filepath.Join(repository, "docs")}); !published || err != nil {
+		t.Fatalf("retry Publish() = %t, %v", published, err)
+	}
+	if got := git(t, remote, "rev-parse", "main"); got != failedCommit {
+		t.Fatalf("remote commit = %s, want %s", got, failedCommit)
+	}
+}
+
 func newRepository(t *testing.T) (string, string) {
 	t.Helper()
 	repository := t.TempDir()

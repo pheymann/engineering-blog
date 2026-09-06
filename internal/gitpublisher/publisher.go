@@ -91,7 +91,19 @@ func pendingPublish(repository, output string) bool {
 }
 
 func headContainsOnly(repository, output string) bool {
-	files := strings.Fields(outputOf(repository, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"))
+	command := exec.Command("git", "diff-tree", "--no-commit-id", "--name-only", "-z", "-r", "HEAD")
+	command.Dir = repository
+	contents, err := command.Output()
+	if err != nil {
+		return false
+	}
+	entries := bytes.Split(bytes.TrimSuffix(contents, []byte{0}), []byte{0})
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if len(entry) > 0 {
+			files = append(files, string(entry))
+		}
+	}
 	if len(files) == 0 {
 		return false
 	}
