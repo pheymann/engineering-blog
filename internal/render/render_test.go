@@ -19,7 +19,7 @@ func TestPostRendersSupportedMarkdownAndMVPChrome(t *testing.T) {
 		t.Fatalf("Post() error = %v", err)
 	}
 	for _, want := range []string{
-		`<h1>A &lt;safe&gt; &amp; useful note</h1><time datetime="2026-09-04">September 4, 2026</time>`,
+		`<h1>A &lt;safe&gt; &amp; useful note</h1><time datetime="2026-09-04" itemprop="datePublished">September 4, 2026</time>`,
 		`<h2>A heading</h2>`, `<p>A paragraph with <a href="/other/">a link</a> and <sub>1</sub>.</p>`,
 		`<ul><li>one</li><li>two</li></ul>`, `<ol><li>first</li><li>second</li></ol>`,
 		`<figure><img src="/assets/images/logo.svg" alt="Logo"><figcaption>A caption</figcaption></figure>`,
@@ -27,6 +27,7 @@ func TestPostRendersSupportedMarkdownAndMVPChrome(t *testing.T) {
 		`<link rel="canonical" href="https://engineering.paulheymann.de/a-safe-useful-note/">`,
 		`<meta property="og:title" content="A &lt;safe&gt; &amp; useful note — Paul&#39;s Engineering Blog">`,
 		`<meta property="og:type" content="article">`, `<meta property="og:description" content="First &lt;line&gt; Second line">`,
+		`<meta property="article:published_time" content="2026-09-04">`,
 		`href="/assets/styles.css"`, `src="/assets/images/pauls-engineering-blog.svg"`, `href="/impressum/"`,
 	} {
 		if !strings.Contains(html, want) {
@@ -121,5 +122,8 @@ func TestHomeOrdersPostsAndEscapesThreeSentenceExcerpts(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Errorf("Home() output missing %q", want)
 		}
+	}
+	if strings.Contains(html, `article:published_time`) || strings.Contains(html, `itemprop="datePublished"`) {
+		t.Error("Home() rendered article publication metadata")
 	}
 }

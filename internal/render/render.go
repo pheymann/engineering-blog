@@ -29,8 +29,10 @@ func Post(value *post.Post) (string, error) {
 	}
 	canonical := postURL(value.Slug)
 	description := plainText(value.Excerpt)
+	publishedDate := value.Date.Format("2006-01-02")
 	return document(value.Title+" — Paul's Engineering Blog", description, "article", canonical,
-		`<main class="site-content"><article class="post"><header class="post-header"><h1>`+html.EscapeString(value.Title)+`</h1><time datetime="`+value.Date.Format("2006-01-02")+`">`+html.EscapeString(value.Date.Format("January 2, 2006"))+`</time></header>`+body+`</article></main>`), nil
+		`    <meta property="article:published_time" content="`+publishedDate+`">`+"\n",
+		`<main class="site-content"><article class="post"><header class="post-header"><h1>`+html.EscapeString(value.Title)+`</h1><time datetime="`+publishedDate+`" itemprop="datePublished">`+html.EscapeString(value.Date.Format("January 2, 2006"))+`</time></header>`+body+`</article></main>`), nil
 }
 
 // Home renders all supplied posts newest first. Each card preserves the first
@@ -51,11 +53,11 @@ func Home(posts []*post.Post) (string, error) {
 		cards.WriteString(`</p><span class="post-card-link">Read note <span aria-hidden="true">→</span></span></a>`)
 	}
 	description := "Sharing experiences on AI, software, and leading teams."
-	return document("Paul's Engineering Blog", description, "website", canonicalBase+"/",
+	return document("Paul's Engineering Blog", description, "website", canonicalBase+"/", "",
 		`<main class="site-content"><p class="homepage-intro">Hi, I am Paul and I am a Staff Engineer and Engineering Manager from Germany. Talk to me on <a href="https://www.linkedin.com/in/paul-heymann-6b4a53144/">LinkedIn</a> or send me an email at <a href="mailto:contact@paulheymann.de">contact@paulheymann.de</a>.</p><div class="post-list">`+cards.String()+`</div></main>`), nil
 }
 
-func document(title, description, kind, canonical, main string) string {
+func document(title, description, kind, canonical, articleMetadata, main string) string {
 	return `<!doctype html>
 <html lang="en">
   <head>
@@ -68,7 +70,7 @@ func document(title, description, kind, canonical, main string) string {
     <meta property="og:type" content="` + kind + `">
     <meta property="og:url" content="` + html.EscapeString(canonical) + `">
     <meta property="og:description" content="` + html.EscapeString(description) + `">
-    <link rel="stylesheet" href="/assets/styles.css">
+` + articleMetadata + `    <link rel="stylesheet" href="/assets/styles.css">
   </head>
   <body>
     <header class="site-header"><a class="site-logo" href="/" aria-label="Paul's Engineering Blog home"><img class="site-logo-image" src="/assets/images/pauls-engineering-blog.svg" alt="Paul's Engineering Blog"></a></header>
