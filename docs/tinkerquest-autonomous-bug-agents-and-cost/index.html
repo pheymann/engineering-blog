@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="New day, no sleep, new problems. I am still waiting in the hospital and still nothing else to do. - My MVP had issues.">
+    <title>TinkerQuest - Autonomous bug agents and cost — Paul&#39;s Engineering Blog</title>
+    <link rel="canonical" href="https://engineering.paulheymann.de/tinkerquest-autonomous-bug-agents-and-cost/">
+    <meta property="og:title" content="TinkerQuest - Autonomous bug agents and cost — Paul&#39;s Engineering Blog">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://engineering.paulheymann.de/tinkerquest-autonomous-bug-agents-and-cost/">
+    <meta property="og:description" content="New day, no sleep, new problems. I am still waiting in the hospital and still nothing else to do. - My MVP had issues.">
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <header class="site-header"><a class="site-logo" href="/" aria-label="Paul's Engineering Blog home"><img class="site-logo-image" src="/assets/images/pauls-engineering-blog.svg" alt="Paul's Engineering Blog"></a></header>
+    <main class="site-content"><article class="post"><header class="post-header"><h1>TinkerQuest - Autonomous bug agents and cost</h1><time datetime="2026-08-31">August 31, 2026</time></header><p>New day, no sleep, new problems. I am still waiting in the hospital and still nothing else to do.</p><ul><li>My MVP had issues. At some point I just added logic to spawn Codex when an error shows up. It would analyze and fix it. I still review the result before it goes live. Makes the whole bug fix cycle faster. This is not news, but doing it the first time myself and seeing it in action just puts it into a different perspective.</li><li>Codex costs are low. 0.8€ in more than 24h is a bargain.</li><li>What is missing for me is some way to specify the use cases and requirements in a codified way. That would ensure the solution works as intended and I don’t have to sweat not reading the generated code (besides executable specs).</li></ul><p>Probably a good time to check in on costs. Yesterday I ran out of tokens for the night. All in all, I spent a whopping 0.8€ across more than 24 h. In that timeframe, I iterated through 2 PoCs and set up tests and used a bunch of tech I never used before. Building something new has never been so cheap.</p><p>But I am also not done yet. All my TinkerCAD<sup><a href="#footnote-1" id="footnote-ref-1-1" aria-describedby="footnote-1">1</a></sup> interactions are broken and I don’t know why. Hard to figure out what is wrong without logs. So off we go adding some baseline observability so Sol can apply a fix.</p><figure><img class="post-image-portrait" src="/assets/posts/IMG_0077.jpeg" alt="IMG_0077"></figure><p>Next interaction, next error. Sending Codex questions from within TinkerQuest also fails. I start another Codex session and do the same bug fix exercise again. Until I realize that I can automate all of that. Every new error log will trigger a Codex session that analyzes and fixes the bug. If an error cannot be fixed because it is triggered by a dependency like TinkerCAD, it becomes a warning and gets ignored in the future.</p><p>Now, I have an agent running alongside my app and modifying it when it finds a problem. That is somehow wild.</p><p>Previous read: <a href="/tinkerquest-nightshift-and-an-mvp/">TinkerQuest - Nightshift and an MVP</a></p><h2>Footnotes</h2><ol class="footnotes"><li id="footnote-1"><a href="https://www.tinkercad.com/">Tinkercad</a> <a class="footnote-backref" href="#footnote-ref-1-1" aria-label="Back to reference 1">↩</a></li></ol></article></main>
+    <footer class="site-footer"><div class="site-footer-inner"><span>Paul's Engineering Blog</span><nav class="footer-links" aria-label="Legal links"><a href="/impressum/">Impressum</a><a href="/datenschutzerklaerung/">Datenschutzerklärung</a></nav></div></footer>
+  </body>
+</html>
