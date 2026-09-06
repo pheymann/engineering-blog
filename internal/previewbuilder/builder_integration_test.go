@@ -101,6 +101,23 @@ func TestBuildLifecycle(t *testing.T) {
 		t.Fatal("unchanged build rewrote output or state")
 	}
 
+	state, err := readState(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.RenderVersion = 0
+	if err := writeState(statePath, state); err != nil {
+		t.Fatal(err)
+	}
+	result, err = Build(config)
+	if err != nil || !result.Changed {
+		t.Fatalf("renderer upgrade Build() = %#v, %v, want changed build", result, err)
+	}
+	state, err = readState(statePath)
+	if err != nil || state.RenderVersion != renderVersion {
+		t.Fatalf("renderer upgrade state = %#v, %v", state, err)
+	}
+
 	write(t, filepath.Join(vault, "First post.md"), postSource("First post", "2026-09-04", "/first-old/", "#blog #engineering #preview\nupdated first body"))
 	result, err = Build(config)
 	if err != nil || !result.Changed {

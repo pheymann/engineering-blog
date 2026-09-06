@@ -89,7 +89,7 @@ func Build(config Config) (Result, error) {
 	previous, stateErr := readState(config.StatePath)
 	sameInput := stateErr == nil && previous.Fingerprint == fingerprint
 	outputIntact := stateErr == nil && outputMatches(config.OutputDirectory, previous.Files)
-	if sameInput && outputIntact {
+	if sameInput && outputIntact && previous.RenderVersion == renderVersion {
 		return Result{Posts: len(posts)}, nil
 	}
 
