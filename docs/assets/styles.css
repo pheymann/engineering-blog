@@ -82,6 +82,9 @@ a { color: inherit; }
 
 .site-content { flex: 1; padding-bottom: var(--space-5); }
 
+.homepage-intro { max-width: 68ch; margin: 0 0 var(--space-4); }
+.homepage-intro a { font-weight: 600; text-underline-offset: 0.18em; }
+
 .post-list { display: grid; gap: var(--space-2); }
 
 .post-card {
