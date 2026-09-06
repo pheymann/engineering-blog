@@ -8,7 +8,7 @@ Test Teardown    Reserved Vault Fixture Must Be Absent
 *** Test Cases ***
 Homepage Shows Introduction With Contact Links
     Open Site Page
-    Get Text    css=.homepage-intro    ==    Hi, I am Paul and I am a Staff Engineer and Engineering Manager living in Germany. Talk to me on LinkedIn or send me an email at contact@paulheymann.de.
+    Get Text    css=.homepage-intro    ==    Hi, I am Paul and I am a Staff Engineer and Engineering Manager from Germany. Talk to me on LinkedIn or send me an email at contact@paulheymann.de.
     Get Attribute    css=.homepage-intro a >> text=LinkedIn    href    ==    https://www.linkedin.com/in/paul-heymann-6b4a53144/
     Get Attribute    css=.homepage-intro a >> text=contact@paulheymann.de    href    ==    mailto:contact@paulheymann.de
 

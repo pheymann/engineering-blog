@@ -120,7 +120,7 @@ assert.match(outputIndex, /<link rel="stylesheet" href="\/assets\/styles\.css">/
 assert.match(outputIndex, /src="\/assets\/images\/pauls-engineering-blog\.svg"/);
 assert.equal((outputIndex.match(/class="post-card"/g) ?? []).length, 0, 'Checked-in homepage must not contain mock posts.');
 assert.doesNotMatch(outputIndex, /Latest engineering notes|class="section-title"/, 'Checked-in homepage must not retain the removed latest-post heading.');
-assert.match(outputIndex, /<p class="homepage-intro">Hi, I am Paul and I am a Staff Engineer and Engineering Manager living in Germany\. Talk to me on <a href="https:\/\/www\.linkedin\.com\/in\/paul-heymann-6b4a53144\/">LinkedIn<\/a> or send me an email at <a href="mailto:contact@paulheymann\.de">contact@paulheymann\.de<\/a>\.<\/p>/, 'Checked-in homepage must include the linked introduction.');
+assert.match(outputIndex, /<p class="homepage-intro">Hi, I am Paul and I am a Staff Engineer and Engineering Manager from Germany\. Talk to me on <a href="https:\/\/www\.linkedin\.com\/in\/paul-heymann-6b4a53144\/">LinkedIn<\/a> or send me an email at <a href="mailto:contact@paulheymann\.de">contact@paulheymann\.de<\/a>\.<\/p>/, 'Checked-in homepage must include the linked introduction.');
 assert.ok(outputIndex.indexOf('class="homepage-intro"') < outputIndex.indexOf('class="post-list"'), 'Homepage introduction must appear before the post list.');
 
 const sourceIndex = await readFile(resolve(sourceDirectory, 'index.html'), 'utf8');
