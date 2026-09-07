@@ -73,6 +73,8 @@ for (const requiredDirective of [
   'Environment="BLOG_VAULT_DIRECTORY=/root/obsidian-vault/Engineering Blog"',
   'Environment=BLOG_PREVIEW_OUTPUT_DIRECTORY=/var/lib/engineering-blog/site',
   'Environment=BLOG_PRODUCTION_STATE_PATH=/var/lib/engineering-blog/production-state.json',
+  'StartLimitIntervalSec=1min',
+  'StartLimitBurst=5',
   'ExecStartPre=/opt/engineering-blog/bin/vault-preview-service --build-once',
   'ExecStart=/opt/engineering-blog/bin/vault-preview-service',
   'Restart=on-failure',

@@ -5,6 +5,10 @@ After=local-fs.target network-online.target
 Wants=network-online.target
 RequiresMountsFor=/opt/engineering-blog /root/obsidian-vault
 ConditionPathIsDirectory=/root/obsidian-vault/Engineering Blog
+# Stop retrying after five failed starts within one minute. An operator can
+# correct the build or deployment error and start the service again explicitly.
+StartLimitIntervalSec=1min
+StartLimitBurst=5
 
 [Service]
 Type=simple
