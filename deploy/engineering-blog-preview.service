@@ -36,7 +36,8 @@ UMask=0022
 
 # The root-owned vault directory is intentionally mounted read-only. The
 # transformer writes only the generated StateDirectory used by the web server.
-NoNewPrivileges=yes
+# NoNewPrivileges and RestrictSUIDSGID are intentionally omitted: the root
+# transformer must drop to BLOG_MERMAID_USER when it launches mmdc.
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=read-only
@@ -44,7 +45,6 @@ ReadWritePaths=/var/lib/engineering-blog /opt/engineering-blog
 ProtectControlGroups=yes
 ProtectKernelModules=yes
 ProtectKernelTunables=yes
-RestrictSUIDSGID=yes
 LockPersonality=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 

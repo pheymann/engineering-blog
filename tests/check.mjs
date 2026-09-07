@@ -83,6 +83,11 @@ for (const requiredDirective of [
 ]) {
   assert.match(previewUnit, new RegExp(`^${requiredDirective.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'), `preview unit needs ${requiredDirective}.`);
 }
+assert.doesNotMatch(
+  previewUnit,
+  /^(?:NoNewPrivileges|RestrictSUIDSGID)=yes$/m,
+  'the preview transformer must be allowed to drop privileges for the Mermaid renderer.'
+);
 
 const installer = await readFile(installServiceScript, 'utf8');
 for (const requiredCommand of [
