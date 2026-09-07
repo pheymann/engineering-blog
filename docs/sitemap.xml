@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://engineering.paulheymann.de/</loc></url>
+  <url><loc>https://engineering.paulheymann.de/of-not-appreciating-terminal-rendering-enough/</loc><lastmod>2026-09-01</lastmod></url>
   <url><loc>https://engineering.paulheymann.de/tinkerquest-autonomous-bug-agents-and-cost/</loc><lastmod>2026-08-31</lastmod></url>
   <url><loc>https://engineering.paulheymann.de/tinkerquest-chatgpt-work-needs-some-love/</loc><lastmod>2026-08-28</lastmod></url>
   <url><loc>https://engineering.paulheymann.de/tinkerquest-codex-on-hetzner-with-tailscale/</loc><lastmod>2026-08-29</lastmod></url>
   <url><loc>https://engineering.paulheymann.de/tinkerquest-herdr-all-the-codexes/</loc><lastmod>2026-08-30</lastmod></url>
+  <url><loc>https://engineering.paulheymann.de/tinkerquest-how-to-vibe-on-your-phone/</loc><lastmod>2026-09-01</lastmod></url>
   <url><loc>https://engineering.paulheymann.de/tinkerquest-nightshift-and-an-mvp/</loc><lastmod>2026-08-30</lastmod></url>
   <url><loc>https://engineering.paulheymann.de/impressum/</loc></url>
   <url><loc>https://engineering.paulheymann.de/datenschutzerklaerung/</loc></url>
